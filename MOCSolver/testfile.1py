@@ -1,0 +1,46 @@
+from trackgenerator import TrackGeneration
+from rayproperties import RayProperties
+from geometry import Geometry
+import numpy as np
+import matplotlib.pyplot as plt
+
+num_azim = 12 #number of azimuthal angles desired
+t = 0.3 #track spacing desired, cm
+h = 1.26 #height of pincell
+w = 1.26 #width of pincell
+r = 0.4 #fuel pin radius
+n_p = 2 #number of polar divisions; can be 2 or 3
+
+if (num_azim % 4 == 0):
+    m = num_azim / 4
+else:
+    print "Error! Number of azimuthal angles must be a multiple of 4."
+
+tracks = TrackGeneration(num_azim, t, w, h, m)
+
+print "Parameters input: \n number of azimuthal angles = %d \t track spacing = %f cm\n " \
+      "pincell width = %f cm \t pincell height = %f cm\n" % (tracks.n_azim, tracks.spacing, tracks.width, tracks.height)
+
+for i in range(0, tracks.m):
+    print "Calculating parameters for angle %d of %d...\n" % ((i+1), (m))
+    print " phi = %f \n nx = %f \n ny = %f \n phi_eff = %f " \
+          "\n t_eff = %f cm \n w_m = %f \n" % (tracks.phi(i), tracks.nx(i), tracks.ny(i), tracks.phi_eff(i), tracks.spacing_eff(i), tracks.azim_weight(i))
+    # NOTE: should the weights for tracks between 0 and M be negative?? because they are...
+    # possible place to debug the physics later.
+
+    for j in range(0, int(tracks.nx(i))):
+        ray_num = j
+        print "Calculating angle %d, ray %d of %d...\n" % ((i + 1), (j + 1), tracks.nx(i))
+        ray = RayProperties(tracks.phi_eff(i), ray_num, tracks.spacing_eff(i), w, h)
+        entrance = ray.entrance_coords()
+        exit = ray.find_exit_coords(ray.slope(), ray.b(entrance[0], entrance[1],ray.slope()), 1)
+        ray.print_coords(entrance, exit)
+        #newslope = -1 * (1/ray.slope())
+        exit2 = ray.find_exit_coords(ray.slope() ,ray.b(exit[0], exit[1], ray.slope()), 2)
+        ray.print_coords(exit, exit2)
+#        ray.plot_ray(entrance, exit)
+
+
+
+
+w_p, sintheta_p = tracks.polar_weight(n_p)
