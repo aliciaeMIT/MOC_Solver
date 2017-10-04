@@ -4,8 +4,8 @@ from geometry import Geometry
 import numpy as np
 import matplotlib.pyplot as plt
 
-num_azim = 12 #number of azimuthal angles desired
-t = 0.3 #track spacing desired, cm
+num_azim = 4 #number of azimuthal angles desired
+t = 0.2 #track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -33,12 +33,18 @@ for i in range(0, tracks.m):
         print "Calculating angle %d, ray %d of %d...\n" % ((i + 1), (j + 1), tracks.nx(i))
         ray = RayProperties(tracks.phi_eff(i), ray_num, tracks.spacing_eff(i), w, h)
         entrance = ray.entrance_coords()
-        exit = ray.find_exit_coords(ray.slope(), ray.b(entrance[0], entrance[1],ray.slope()), 1)
+        num_trace = 1
+        exit = ray.find_exit_coords(ray.slope(), ray.b(entrance[0], entrance[1],ray.slope(), num_trace), num_trace)
         ray.print_coords(entrance, exit)
-        #newslope = -1 * (1/ray.slope())
-        exit2 = ray.find_exit_coords(ray.slope() ,ray.b(exit[0], exit[1], ray.slope()), 2)
+
+        num_trace = 2
+        exit2 = ray.find_exit_coords(ray.slope() ,ray.b(exit[0], exit[1], ray.slope(), num_trace), num_trace)
+
         ray.print_coords(exit, exit2)
-#        ray.plot_ray(entrance, exit)
+
+        num_trace = 3
+        exit3 = ray.find_exit_coords(ray.slope() ,ray.b(exit2[0], exit2[1], ray.slope(), num_trace), num_trace)
+        ray.plot_ray(entrance, exit, exit2)
 
 
 
