@@ -21,30 +21,47 @@ tracks = TrackGeneration(num_azim, t, w, h, m)
 print "Parameters input: \n number of azimuthal angles = %d \t track spacing = %f cm\n " \
       "pincell width = %f cm \t pincell height = %f cm\n" % (tracks.n_azim, tracks.spacing, tracks.width, tracks.height)
 
+
 for i in range(0, tracks.m):
     print "Calculating parameters for angle %d of %d...\n" % ((i+1), (m))
-    print " phi = %f \n nx = %f \n ny = %f \n phi_eff = %f " \
-          "\n t_eff = %f cm \n w_m = %f \n" % (tracks.phi(i), tracks.nx(i), tracks.ny(i), tracks.phi_eff(i), tracks.spacing_eff(i), tracks.azim_weight(i))
+    #unpack azimuthal angle and its complement for each i
+    print " phi = %f \n phi_comp = %f \n nx = %f \n ny = %f \n phi_eff = %f " \
+          "\n t_eff = %f cm \n w_m = %f \n" % (tracks.phi(i), tracks.phi_comp(i), tracks.nx(i), tracks.ny(i), tracks.phi_eff(i), tracks.spacing_eff(i), tracks.azim_weight(i))
     # NOTE: should the weights for tracks between 0 and M be negative?? because they are...
     # possible place to debug the physics later.
+    print " dx = %f \n dy = %f" % (tracks.dx(i), tracks.dy(i))
+
+    ray_coords_in = np.zeros((tracks.nx(i), 4))  # ray number, trace number
+    ray_coords_out = np.zeros((tracks.nx(i), 4))  # ray number, trace number
 
     for j in range(0, int(tracks.nx(i))):
         ray_num = j
+
         print "Calculating angle %d, ray %d of %d...\n" % ((i + 1), (j + 1), tracks.nx(i))
-        ray = RayProperties(tracks.phi_eff(i), ray_num, tracks.spacing_eff(i), w, h)
+        ray = RayProperties(tracks.phi_eff(i), ray_num, tracks.spacing_eff(i), tracks.dx(i), tracks.dy(i),  w, h)
         entrance = ray.entrance_coords()
+
         num_trace = 1
         exit = ray.find_exit_coords(ray.slope(), ray.b(entrance[0], entrance[1],ray.slope(), num_trace), num_trace)
         ray.print_coords(entrance, exit)
 
+        ray_coords_in[ray_num, (num_trace - 1)] = entrance
+        ray_coords_out[ray_num, (num_trace - 1)] = exit
+
         num_trace = 2
         exit2 = ray.find_exit_coords(ray.slope() ,ray.b(exit[0], exit[1], ray.slope(), num_trace), num_trace)
-
         ray.print_coords(exit, exit2)
+
+        #ray_coords[ray_num, (num_trace - 1)] = exit, exit1
 
         num_trace = 3
         exit3 = ray.find_exit_coords(ray.slope() ,ray.b(exit2[0], exit2[1], ray.slope(), num_trace), num_trace)
-        ray.plot_ray(entrance, exit, exit2)
+        ray.print_coords(exit2, exit3)
+
+        num_trace = 4
+        exit4 = ray.find_exit_coords(ray.slope(), ray.b(exit3[0], exit3[1], ray.slope(), num_trace), num_trace)
+        ray.print_coords(exit3, exit4)
+        ray.plot_ray(entrance, exit, exit2, exit3, exit4)
 
 
 
