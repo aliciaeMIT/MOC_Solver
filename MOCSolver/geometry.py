@@ -9,6 +9,7 @@ class Geometry():
         self.radius = radius
 
     def createFuel(self, x, y):
+
         pass
 
     def divideRegions(self):

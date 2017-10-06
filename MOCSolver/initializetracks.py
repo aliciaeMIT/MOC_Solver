@@ -34,10 +34,10 @@ class InitializeTracks(object):
 
         for i in range(0,self.num_azim2):
             for j in range(0, int(self.nx[i])):
-               if (i < self.num_azim2 / 2):
+                if (i >= self.num_azim2 / 2):
                    temp = self.dx[i] * (self.nx[i] - j - 0.5)
                    self.startpoint[i][j] = (temp, 0)
-               else:
+                else:
                    temp = (j * self.dx[i] + (self.dx[i] / 2))
                    self.startpoint[i][j] = (temp, 0)
 
@@ -45,7 +45,7 @@ class InitializeTracks(object):
             for j in range(0, int(self.ny[i])):
                 k = self.nx[i] + j
                 temp = ((j * self.dy[i] + (self.dy[i] / 2)))
-                if (i < self.num_azim2 / 2):
+                if (i >= self.num_azim2 / 2):
                     self.startpoint[i][k] = (0.0,temp)
 
                 else:
@@ -55,7 +55,7 @@ class InitializeTracks(object):
     def getEnd(self):
         for i in range(0, self.num_azim2):
             print "Getting ray exit coordinates...\n"
-            slope = math.tan(self.phi[i])
+            slope = math.tan(self.phi_eff[i])
 
             counter = int(self.nx[i] + self.ny[i])
 
@@ -75,18 +75,34 @@ class InitializeTracks(object):
 
                 x = (- b) / slope
                 x1 = (self.height - b) / slope
+                """
                 self.poss[0] = (0, y)
                 self.poss[1] = (self.width, y1)
                 self.poss[2] = (x, 0)
                 self.poss[3] = (x1, self.height)
+                """
+                self.poss[0] = (0, y0 - slope * x0)
+                self.poss[1] = (self.width, y0 + slope * (self.width - x0))
+                self.poss[2] = (x0 - y0/slope, 0)
+                self.poss[3] = (x0 - (y0 - self.height)/slope, self.height)
 
                 for k in range(0,4):
                     diffx = round(math.fabs(x0 - self.poss[k][0]),3)
                     diffy = round(math.fabs(y0 - self.poss[k][1]),3)
                     if (diffx == 0.0) and (diffy == 0.0):
-                        pass
+                        pass #checks for trivial case where it found the start point, does not save that as a solution
                     elif (self.poss[k][0] >= 0.00 and self.poss[k][0] <= self.width) and (self.poss[k][1] >= 0.00 and self.poss[k][1] <=self.height):
                         self.endpoint[i][j] = self.poss[k]
+                        xtemp, ytemp = self.endpoint[i][j]
+                        """
+                        diffdx = math.fabs(self.endpoint[i][j][0] - self.width)
+                        diffdy = math.fabs(self.endpoint[i][j][1] - self.height)
+                        tolx =  (self.dx[i]/2)
+                        toly =  (self.dy[i]/2)
+                        if (diffdx <= tolx) and (diffdy <= toly):
+                            print "Endpoint too close for i = %d, j = %d, k = %d with dx, dy = %.4f, %.4f" %(i,j,k,self.dx[i], self.dy[i])
+                            print self.endpoint[i][j]
+                        """
                         #break
                         #continue
                     else:
@@ -118,7 +134,7 @@ class InitializeTracks(object):
 
                 plt.plot(xvals, yvals, 'k')
                 plt.axis([0, self.width, 0, self.height])
-        print "plotting..."
+            print "plotting..."
         plt.show()
 
     def getTracks(self):
@@ -166,6 +182,8 @@ class InitializeTracks(object):
             self.dx[self.num_azim2 - i - 1] = self.dx[i]
             self.dy[self.num_azim2 - i - 1] = self.dy[i]
             self.deff[self.num_azim2 - i - 1] = self.deff[i]
+            self.phi_eff[self.num_azim2 - i -1] = self.phi_comp[i]
+
 
             
         self.getStart()
