@@ -2,7 +2,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-class initializeTracks(object):
+class InitializeTracks(object):
     def __init__(self, num_azim, spacing, width, height, num_polar):
         """
         This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
@@ -29,10 +29,9 @@ class initializeTracks(object):
         self.omega_p = np.zeros(self.n_p)
         self.sintheta_p = np.zeros(self.n_p)
 
-
     def getStart(self):
-        print "Getting ray entrance coordinates...\n"
-        print "\tCalculating nx rays...\n"
+        print "Getting  entrance coordinates...\n"
+
         for i in range(0,self.num_azim2):
             for j in range(0, int(self.nx[i])):
                if (i < self.num_azim2 / 2):
@@ -43,7 +42,6 @@ class initializeTracks(object):
                    self.startpoint[i][j] = (temp, 0)
 
 
-            print "\t\tCalculating ny rays...\n"
             for j in range(0, int(self.ny[i])):
                 k = self.nx[i] + j
                 temp = ((j * self.dy[i] + (self.dy[i] / 2)))
@@ -52,18 +50,15 @@ class initializeTracks(object):
 
                 else:
                     self.startpoint[i][k] = (self.width, temp)
-                    
-
 
 
     def getEnd(self):
         for i in range(0, self.num_azim2):
             print "Getting ray exit coordinates...\n"
-            slope = math.tan(self.phi[i]) #each ray has same slope for a given angle. only compute once.
-            #print slope
-            print "\tCalculating crossings...\n"
+            slope = math.tan(self.phi[i])
+
             counter = int(self.nx[i] + self.ny[i])
-         #   i=1
+
             for j in range(0, counter):
                 x0, y0 = self.startpoint[i][j]
                 b = y0 - slope * x0
@@ -88,7 +83,7 @@ class initializeTracks(object):
                 for k in range(0,4):
                     diffx = round(math.fabs(x0 - self.poss[k][0]),3)
                     diffy = round(math.fabs(y0 - self.poss[k][1]),3)
-                    if (diffx == 0.0) and (diffy == 0.0):#self.poss[k] == (x0, y0):
+                    if (diffx == 0.0) and (diffy == 0.0):
                         pass
                     elif (self.poss[k][0] >= 0.00 and self.poss[k][0] <= self.width) and (self.poss[k][1] >= 0.00 and self.poss[k][1] <=self.height):
                         self.endpoint[i][j] = self.poss[k]
@@ -96,7 +91,6 @@ class initializeTracks(object):
                         #continue
                     else:
                         pass
-                        #print "endpoint ", self.endpoint[i][j]     , i, j
 
 
     def plotTracks(self):
@@ -122,11 +116,10 @@ class initializeTracks(object):
                     print "j out of counter", j, counter
                     raise
 
-                plt.plot(xvals, yvals)
+                plt.plot(xvals, yvals, 'k')
                 plt.axis([0, self.width, 0, self.height])
         print "plotting..."
         plt.show()
-
 
     def getTracks(self):
         print "\n------------------\nInput parameters:\n------------------"
@@ -152,6 +145,7 @@ class initializeTracks(object):
             self.ntot[i] = (self.nx[i] + self.ny[i])
             print "ntot = %f" %(self.ntot[i])
             self.phi_eff[i] = (math.atan((self.height * self.nx[i]) / (self.width * self.ny[i])))
+            #self.phi_eff[i] = (math.atan2((self.height * self.nx[i]) , (self.width * self.ny[i])))
             print "phi_eff = %f" % (math.degrees(self.phi_eff[i]))
             self.phi_comp[i] = (math.pi - self.phi_eff[i])
             print "phi_comp = %f" % (math.degrees(self.phi_comp[i]))
@@ -190,7 +184,7 @@ class initializeTracks(object):
                 self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) / (2 * math.pi)
             else:
                 self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2)/ (2 * math.pi)
-        print "Determining azimuthal weights...."
+        print "Calculating azimuthal weights...."
         print self.omega_m
         return self.omega_m
 
