@@ -3,26 +3,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class initializeTracks(object):
-    def __init__(self, num_azim, spacing, width, height):
+    def __init__(self, num_azim, spacing, width, height, num_polar):
+        """
+        This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
+        """
         self.num_azim2 = num_azim /2
         self.spacing = spacing
         self.width = width
         self.height = height
-        self.phi = np.zeros(50)
-        self.nx = np.zeros(50)
-        self.ny = np.zeros(50)
-        self.ntot = np.zeros(50)
-        self.phi_eff = np.zeros(50)
-        self.phi_comp = np.zeros(50)
-        self.t_eff = np.zeros(50)
-        self.dx = np.zeros(50)
-        self.dy = np.zeros(50)
-        self.deff = np.zeros(50)
-        self.startpoint = np.empty((64, 50), dtype=object)
-        self.xvals = np.zeros((64,40))
-        self.yvals = np.zeros((64,40))
-        self.endpoint = np.empty((64, 50), dtype=object)
+        self.n_p = num_polar
+        self.phi = np.zeros(100)
+        self.nx = np.zeros(100)
+        self.ny = np.zeros(100)
+        self.ntot = np.zeros(100)
+        self.phi_eff = np.zeros(100)
+        self.phi_comp = np.zeros(100)
+        self.t_eff = np.zeros(100)
+        self.dx = np.zeros(100)
+        self.dy = np.zeros(100)
+        self.deff = np.zeros(100)
+        self.startpoint = np.empty((num_azim, 100), dtype=object)
+        self.endpoint = np.empty((num_azim, 100), dtype=object)
         self.poss = np.empty(4, dtype = object)
+        self.omega_m = np.zeros(self.num_azim2)
+        self.omega_p = np.zeros(self.n_p)
+        self.sintheta_p = np.zeros(self.n_p)
 
 
     def getStart(self):
@@ -94,33 +99,32 @@ class initializeTracks(object):
                         #print "endpoint ", self.endpoint[i][j]     , i, j
 
 
-    def plotSingleAngle(self):
-        for i in range(0, self.num_azim2+1):
+    def plotTracks(self):
+        for i in range(0, self.num_azim2):
             counter = int(self.ntot[i])
 
-            for z in range(counter):
+            for j in range(counter):
                 try:
-                    x1 = (self.startpoint[i][z][0])
-                    x2 = (self.endpoint[i][z][0])
+                    x1 = (self.startpoint[i][j][0])
+                    x2 = (self.endpoint[i][j][0])
                     if x1 == x2:
-                        print "Error! X values are equal for i = %d, j = %d" %(i,z)
+                        print "Error! X values are equal for i = %d, j = %d" %(i,j)
                         print "x1 = %f \t x2 = %f" %(x1, x2)
-                    y1 = self.startpoint[i][z][1]
-                    y2 = self.endpoint[i][z][1]
+                    y1 = self.startpoint[i][j][1]
+                    y2 = self.endpoint[i][j][1]
                     if y1 == y2:
-                        print "Error! y values are equal for i= %d, j = %f" %(i,z)
+                        print "Error! y values are equal for i= %d, j = %f" %(i,j)
                         print "y1 = %f \t y2 = %f" %(y1, y2)
                     xvals = [x1, x2]
                     yvals = [y1,y2]
                 except(TypeError):
                     print "i out of n_azim2", i, self.num_azim2
-                    print "z out of counter", z, counter
+                    print "j out of counter", j, counter
                     raise
-                #plt.plot(self.startpoint[i][j],self.endpoint[i][j])
+
                 plt.plot(xvals, yvals)
-                #plt.plot(self.xvals[i][j], self.yvals[i][j])
                 plt.axis([0, self.width, 0, self.height])
-        print "plotting angle %d ray %d" %(i, z)
+        print "plotting..."
         plt.show()
 
 
@@ -168,9 +172,45 @@ class initializeTracks(object):
             self.dx[self.num_azim2 - i - 1] = self.dx[i]
             self.dy[self.num_azim2 - i - 1] = self.dy[i]
             self.deff[self.num_azim2 - i - 1] = self.deff[i]
-            
-            
 
+            
         self.getStart()
         self.getEnd()
-        self.plotSingleAngle()
+        self.plotTracks()
+        self.getAngularQuadrature()
+        self.getPolarWeight()
+
+    def getAngularQuadrature(self):
+        """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
+        """
+        for i in range(self.num_azim2):
+            if (i == 0):
+                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi)
+            elif (i < (self.num_azim2 - 1)):
+                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) / (2 * math.pi)
+            else:
+                self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2)/ (2 * math.pi)
+        print "Determining azimuthal weights...."
+        print self.omega_m
+        return self.omega_m
+
+    def getPolarWeight(self):
+        """determines polar quadrature weights and angles using Tabuchi and Yamamoto (TY) set;
+        number of polar divisions can be specified (2 or 3)
+        returns ([polar weight per division], [sin-theta_polar per division])
+        """
+        print "Calculating polar weights..."
+        if self.n_p == 2:
+            self.omega_p = [0.212854 , 0.787146]
+            self.sintheta_p = [0.363900 , 0.899900]
+
+        elif self.n_p == 3:
+            self.wp = [0.046233, 0.283619, 0.670148]
+            self.sintheta_p = [0.166648, 0.537707, 0.932954]
+
+        else:
+            print "Error: must use 2 or 3 polar divisions for polar quadrature."
+
+        print self.omega_p
+        print self.sintheta_p
+        return self.omega_p, self.sintheta_p

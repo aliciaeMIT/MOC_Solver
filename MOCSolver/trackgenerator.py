@@ -7,27 +7,47 @@ class TrackGeneration():
         self.spacing = spacing
         self.width = width
         self.height = height
-        self.m = m
+        self.m = m #to get initial angles, need to loop from 0 to n_azim/2.
 
     def phi(self, i):
         """computes azimuthal angle based on user desired inputs
         """
-        return ((2 * math.pi / self.n_azim) * (i + 0.5))
+        phi_1 = ((2 * math.pi / self.n_azim) * (i + 0.5))
+        return phi_1
+
+
 
     def nx(self, i):
-        """ computes number of tracks for a given azimuthal angle, on y axis
+        """ computes number of tracks for a given azimuthal angle, on x axis
         """
-        return (math.floor((self.width / self.spacing) * math.cos(self.phi(i))) + 1)
+        return (math.fabs((self.width / self.spacing) * math.cos(self.phi(i))) + 1)
+
+    def dx(self, i):
+        """computes distance between ray nodes on x axis
+        """
+        return self.width / self.nx(i)
 
     def ny(self, i):
-        """computes number of tracks for given azimuthal angle on x axis
+        """computes number of tracks for given azimuthal angle on y axis
         """
         return (math.floor((self.height / self.spacing) * math.sin(self.phi(i))) + 1)
+
+    def dy(self, i):
+        """computes distance between ray nodes on y axis
+        """
+        return self.height / self.ny(i)
 
     def phi_eff(self, i):
         """computes effective azimuthal angle to guarantee cyclic tracks
         """
-        return (math.atan((self.height * self.nx(i)) / (self.width * self.ny(i))))
+        return (math.atan((self.dy(i)) / (self.dx(i))))
+        #return (math.atan((self.height * self.nx(i)) / (self.width * self.ny(i))))
+
+    def phi_comp(self, i):
+        """computes complementary azimuthal angle
+        """
+        phi_comp = math.pi - self.phi_eff(i)
+        return phi_comp
 
     def spacing_eff(self, i):
         """ computation of effective ray spacing for each azimuthal angle
