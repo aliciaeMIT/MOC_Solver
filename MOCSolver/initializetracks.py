@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 class InitializeTracks(object):
-    def __init__(self, num_azim, spacing, width, height, num_polar, radius):
+    def __init__(self, num_azim, spacing, width, height, num_polar, radius, num_rings, ring_radii):
         """
         This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
         """
@@ -14,6 +14,9 @@ class InitializeTracks(object):
         self.height = height
         self.n_p = num_polar
         self.radius = radius
+        self.ring_radii = ring_radii
+        self.num_rings = num_rings
+        
         self.phi = np.zeros(100)
         self.nx = np.zeros(100)
         self.ny = np.zeros(100)
@@ -118,6 +121,12 @@ class InitializeTracks(object):
         ax1 = fig1.add_subplot(111, aspect='equal')
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
+        if not (self.num_rings == 0):
+            rings = np.zeros(self.num_rings)
+            for k in range(len(self.ring_radii)):
+                ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
+                ax1.add_patch(ring)
+
         for i in range(0, self.num_azim2):
             counter = int(self.ntot[i])
 
@@ -201,13 +210,14 @@ class InitializeTracks(object):
             self.phi_eff[self.num_azim2 - i -1] = self.phi_comp[i]
 
 
-            
+        """   
         self.getStart()
         self.getEnd()
         self.getAngularQuadrature()
         self.getPolarWeight()
         self.findIntersection()
         self.plotTracks()
+        """
 
     def getAngularQuadrature(self):
         """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.

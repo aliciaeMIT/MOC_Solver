@@ -7,6 +7,9 @@ class Geometry():
         self.width = width
         self.height = height
         self.radius = radius
+        self.x0 = width / 2
+        self.y0 = height / 2
+        self.ring_radius = np.zeros(10) #store radii for rings to create in fuel
 
 
 
@@ -75,13 +78,21 @@ class Geometry():
             print "line does not intersect"
             return
 
+    def createRings(self, num_rings):
+        #fuel_edge = (x-x0) ** 2 + (y-y0) ** 2 - radius ** 2
+        print "Creating rings..."
 
+        ring_spacing = self.radius / (num_rings + 1)
 
-    def createFuel(self, x, y):
+        for i in range(0, num_rings):
+            j = i + 1
+            self.ring_radius[i] = self.radius - (j * ring_spacing)
+            print "ring %d created: radius = %.3f cm" %(j, self.ring_radius[i])
+
 
         pass
 
-    def divideRegions(self):
+    def divideSectors(self):
         pass
 
     def isFuelRegion(self):
