@@ -30,8 +30,8 @@ class InitializeTracks(object):
         self.omega_m = np.zeros(self.num_azim2)
         self.omega_p = np.zeros(self.n_p)
         self.sintheta_p = np.zeros(self.n_p)
-        self.intersect1 = np.zeros((num_azim,100), dtype = object)
-        self.intersect2 = np.zeros((num_azim,100), dtype = object)
+        self.intersect1 = np.empty((num_azim,100), dtype = object)
+        self.intersect2 = np.empty((num_azim,100), dtype = object)
 
     def getStart(self):
         print "Getting  entrance coordinates...\n"
@@ -116,6 +116,8 @@ class InitializeTracks(object):
     def plotTracks(self):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
+        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        ax1.add_patch(c)
         for i in range(0, self.num_azim2):
             counter = int(self.ntot[i])
 
@@ -140,9 +142,15 @@ class InitializeTracks(object):
 
                 plt.plot(xvals, yvals, 'k')
                 plt.axis([0, self.width, 0, self.height])
+                if not (self.intersect1[i][j] == None):
+                    xi1, yi1 = self.intersect1[i][j]
+                    xi2, yi2 = self.intersect2[i][j]
+                    plt.plot(xi1, yi1,'ro')
+                    plt.plot(xi2, yi2, 'go')
+                    
             print "plotting..."
-        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
-        ax1.add_patch(c)
+
+
         plt.show()
 
     def getTracks(self):
@@ -286,12 +294,12 @@ class InitializeTracks(object):
                     #first intersection point
                     fx = (close - dclose) * xproj + x0
                     fy = (close - dclose) * yproj + y0
-                    self.intersect1[i][j] = (fx,fy)
+                    self.intersect1[i][j] = (fx, fy)
 
                     #second intersection point
                     gx = (close + dclose) * xproj + x0
                     gy = (close + dclose) * yproj + y0
-                    self.intersect2[i][j] = (gx,gy)
+                    self.intersect2[i][j] = (gx, gy)
 
                     print "Line intersects!"
 
