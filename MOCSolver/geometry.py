@@ -8,6 +8,75 @@ class Geometry():
         self.height = height
         self.radius = radius
 
+
+
+    def findIntersection(self, points_in, points_out):
+        cx0 = self.width/2
+        cy0 = self.height/2
+        x0, y0 = points_in
+        x1, y1 = points_out
+
+        print "Finding intersection points..."
+
+        raylen = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2 )
+
+        print "Ray length:"
+        print raylen
+
+        xproj = (x1 - x0) / raylen
+        yproj = (y1 - y0) / raylen
+        #consider putting a math.fabs() around these to prevent negative values if the math gets screwy?
+
+        print "x, y projections:"
+        print xproj
+        print yproj
+
+        close = xproj * (cx0 - x0) + yproj * (cy0 - y0)
+
+        print "close to circle:"
+
+        print close
+
+        ex = xproj * close + x0
+        ey = yproj * close + y0
+
+        print "Line point closest to circle center:"
+
+        print "(%f, \t %f)"%(ex, ey)
+
+        dist_center = math.sqrt((ex - cx0) ** 2 + (ey - cy0) ** 2)
+
+        print "distance to center from line:"
+
+        print dist_center
+
+        if dist_center < self.radius:
+            #distance from close to circle intersection point
+            dclose = math.sqrt(self.radius**2 - dist_center **2)
+
+            #first intersection point
+            fx = (close - dclose) * xproj + x0
+            fy = (close - dclose) * yproj + y0
+
+            #second intersection point
+            gx = (close + dclose) * xproj + x0
+            gy = (close + dclose) * yproj + y0
+            print "Line intersects!"
+
+            print "First point: (%.3f, %.3f)" %(fx, fy)
+            print "Second point: (%.3f, %.3f" %(gx, gy)
+            return (fx, fy), (gx, gy)
+
+        elif dist_center == self.radius:
+            print "line is tangent"
+            return
+            #point e is tangent to circle; brushes but does not enter.
+        else:
+            print "line does not intersect"
+            return
+
+
+
     def createFuel(self, x, y):
 
         pass

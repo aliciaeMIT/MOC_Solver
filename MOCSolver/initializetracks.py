@@ -1,9 +1,10 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 class InitializeTracks(object):
-    def __init__(self, num_azim, spacing, width, height, num_polar):
+    def __init__(self, num_azim, spacing, width, height, num_polar, radius):
         """
         This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
         """
@@ -12,6 +13,7 @@ class InitializeTracks(object):
         self.width = width
         self.height = height
         self.n_p = num_polar
+        self.radius = radius
         self.phi = np.zeros(100)
         self.nx = np.zeros(100)
         self.ny = np.zeros(100)
@@ -28,6 +30,8 @@ class InitializeTracks(object):
         self.omega_m = np.zeros(self.num_azim2)
         self.omega_p = np.zeros(self.n_p)
         self.sintheta_p = np.zeros(self.n_p)
+        self.intersect1 = np.zeros((num_azim,100), dtype = object)
+        self.intersect2 = np.zeros((num_azim,100), dtype = object)
 
     def getStart(self):
         print "Getting  entrance coordinates...\n"
@@ -110,6 +114,8 @@ class InitializeTracks(object):
 
 
     def plotTracks(self):
+        fig1 = plt.figure()
+        ax1 = fig1.add_subplot(111, aspect='equal')
         for i in range(0, self.num_azim2):
             counter = int(self.ntot[i])
 
@@ -135,6 +141,8 @@ class InitializeTracks(object):
                 plt.plot(xvals, yvals, 'k')
                 plt.axis([0, self.width, 0, self.height])
             print "plotting..."
+        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        ax1.add_patch(c)
         plt.show()
 
     def getTracks(self):
@@ -188,9 +196,10 @@ class InitializeTracks(object):
             
         self.getStart()
         self.getEnd()
-        self.plotTracks()
         self.getAngularQuadrature()
         self.getPolarWeight()
+        self.findIntersection()
+        self.plotTracks()
 
     def getAngularQuadrature(self):
         """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
@@ -226,3 +235,74 @@ class InitializeTracks(object):
         print self.omega_p
         print self.sintheta_p
         return self.omega_p, self.sintheta_p
+
+    def findIntersection(self):
+
+        for i in range(0,self.num_azim2):
+            for j in range(int(self.ntot[i])):
+                cx0 = self.width/2
+                cy0 = self.height/2
+                x0, y0 = self.startpoint[i][j]
+                x1, y1 = self.endpoint[i][j]
+
+                print "Finding intersection points..."
+
+                raylen = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2 )
+
+                print "Ray length:"
+                print raylen
+
+                xproj = (x1 - x0) / raylen
+                yproj = (y1 - y0) / raylen
+                #consider putting a math.fabs() around these to prevent negative values if the math gets screwy?
+
+                print "x, y projections:"
+                print xproj
+                print yproj
+
+                close = xproj * (cx0 - x0) + yproj * (cy0 - y0)
+
+                print "close to circle:"
+
+                print close
+
+                ex = xproj * close + x0
+                ey = yproj * close + y0
+
+                print "Line point closest to circle center:"
+
+                print "(%f, \t %f)"%(ex, ey)
+
+                dist_center = math.sqrt((ex - cx0) ** 2 + (ey - cy0) ** 2)
+
+                print "distance to center from line:"
+
+                print dist_center
+
+                if dist_center < self.radius:
+                    #distance from close to circle intersection point
+                    dclose = math.sqrt(self.radius**2 - dist_center **2)
+
+                    #first intersection point
+                    fx = (close - dclose) * xproj + x0
+                    fy = (close - dclose) * yproj + y0
+                    self.intersect1[i][j] = (fx,fy)
+
+                    #second intersection point
+                    gx = (close + dclose) * xproj + x0
+                    gy = (close + dclose) * yproj + y0
+                    self.intersect2[i][j] = (gx,gy)
+
+                    print "Line intersects!"
+
+                    print "First point: (%.3f, %.3f)" %(fx, fy)
+                    print "Second point: (%.3f, %.3f" %(gx, gy)
+
+
+                elif dist_center == self.radius:
+                    print "line is tangent"
+                    #return
+                    #point e is tangent to circle; brushes but does not enter.
+                else:
+                    print "line does not intersect"
+                    #return
