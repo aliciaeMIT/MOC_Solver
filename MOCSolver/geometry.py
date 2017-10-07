@@ -1,15 +1,20 @@
 import math
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
 
 
 class Geometry():
-    def __init__(self, width, height, radius):
+    def __init__(self, width, height, radius, num_rings):
         self.width = width
         self.height = height
         self.radius = radius
+        self.num_rings = num_rings
         self.x0 = width / 2
         self.y0 = height / 2
         self.ring_radius = np.zeros(10) #store radii for rings to create in fuel
+        self.sectors = np.zeros(4, dtype=tuple) #store coordinates to plot sector dividing lines
 
 
 
@@ -78,22 +83,48 @@ class Geometry():
             print "line does not intersect"
             return
 
-    def createRings(self, num_rings):
+    def createRings(self):
         #fuel_edge = (x-x0) ** 2 + (y-y0) ** 2 - radius ** 2
         print "Creating rings..."
 
-        ring_spacing = self.radius / (num_rings + 1)
+        ring_spacing = self.radius / (self.num_rings + 1)
 
-        for i in range(0, num_rings):
+        for i in range(0, self.num_rings):
             j = i + 1
             self.ring_radius[i] = self.radius - (j * ring_spacing)
             print "ring %d created: radius = %.3f cm" %(j, self.ring_radius[i])
 
 
-        pass
-
     def divideSectors(self):
-        pass
+        #divide whole domain into 4 by 2 lines on the diagonals
+        self.sectors[0] = (0,0)
+        self.sectors[1] = (self.width, self.height)
+        self.sectors[2] = (0, self.height)
+        self.sectors[3] = (self.width, 0)
+
+
+
+    def plotFSRs(self):
+        fig2 = plt.figure()
+        ax2 = fig2.add_subplot(111, aspect='equal')
+        plt.axis([0, self.width, 0, self.height])
+        c = patches.Circle((self.x0, self.y0), self.radius, color='b', fill=True)
+        ax2.add_patch(c)
+        if not (self.num_rings == 0):
+
+            for k in range(len(self.ring_radius)):
+                ring = patches.Circle((self.width / 2, self.height / 2), (self.ring_radius[k]), fill=False)
+                ax2.add_patch(ring)
+
+        if not (len(self.sectors) == 0):
+            xvals = []
+            yvals = []
+            for k in range(len(self.sectors)):
+                xvals.append(self.sectors[k][0])
+                yvals.append(self.sectors[k][1])
+            plt.plot(xvals, yvals, 'k')
+        plt.show()
+
 
     def isFuelRegion(self):
         fxy = x ** 2 + y ** 2 - self.radius ** 2
