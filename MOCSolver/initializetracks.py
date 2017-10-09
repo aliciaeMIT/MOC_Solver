@@ -35,9 +35,12 @@ class InitializeTracks(object):
         self.sintheta_p = np.zeros(self.n_p)
         self.intersect1 = np.empty((num_azim,100), dtype = object)
         self.intersect2 = np.empty((num_azim,100), dtype = object)
+        self.segstart = np.empty((num_azim * 100), dtype = object)
+        self.segend = np.empty((num_azim * 100), dtype = object)
+        self.seglength = np.empty((num_azim * 100), dtype = object)
 
     def getStart(self):
-        print "Getting  entrance coordinates...\n"
+        print "Getting ray entrance coordinates...\n"
 
         for i in range(0,self.num_azim2):
             for j in range(0, int(self.nx[i])):
@@ -60,8 +63,9 @@ class InitializeTracks(object):
 
 
     def getEnd(self):
+        print "Getting ray exit coordinates...\n"
         for i in range(0, self.num_azim2):
-            print "Getting ray exit coordinates...\n"
+
             slope = math.tan(self.phi_eff[i])
 
             counter = int(self.nx[i] + self.ny[i])
@@ -119,6 +123,7 @@ class InitializeTracks(object):
     def plotTracks(self):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
+        plt.axis([0, self.width, 0, self.height])
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
         if not (self.num_rings == 0):
@@ -150,14 +155,14 @@ class InitializeTracks(object):
                     raise
 
                 plt.plot(xvals, yvals, 'k')
-                plt.axis([0, self.width, 0, self.height])
+
                 if not (self.intersect1[i][j] == None):
                     xi1, yi1 = self.intersect1[i][j]
                     xi2, yi2 = self.intersect2[i][j]
                     plt.plot(xi1, yi1,'ro')
                     plt.plot(xi2, yi2, 'go')
                     
-            print "plotting..."
+        print "plotting tracks..."
 
 
         plt.show()
@@ -210,27 +215,34 @@ class InitializeTracks(object):
             self.phi_eff[self.num_azim2 - i -1] = self.phi_comp[i]
 
 
-        """   
-        self.getStart()
-        self.getEnd()
-        self.getAngularQuadrature()
-        self.getPolarWeight()
-        self.findIntersection()
-        self.plotTracks()
-        """
-
     def getAngularQuadrature(self):
         """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
         """
+        omega_m_tot = 0
         for i in range(self.num_azim2):
             if (i == 0):
-                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi)
+                self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + self.phi_eff[i]) / (2 * math.pi)
+                omega_m_tot += self.omega_m[i]
             elif (i < (self.num_azim2 - 1)):
-                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) / (2 * math.pi)
+                self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i-1])/ 2)) / (2 * math.pi)
+                omega_m_tot += self.omega_m[i]
             else:
-                self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2)/ (2 * math.pi)
+                self.omega_m[i] = (2 * math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i-1]) / 2)   / (2 * math.pi)
+                omega_m_tot += self.omega_m[i]
+            """
+            if (i == 0):
+                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) #/ (2 * math.pi)
+                omega_m_tot += self.omega_m[i]
+            elif (i < (self.num_azim2 - 1)):
+                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) #/ (2 * math.pi)
+                omega_m_tot += self.omega_m[i]
+            else:
+                self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2) #/ (2 * math.pi)
+                omega_m_tot += self.omega_m[i]
+            """
         print "Calculating azimuthal weights...."
         print self.omega_m
+        print "Total azimuthal weight sum: %f\n\n" %(omega_m_tot)
         return self.omega_m
 
     def getPolarWeight(self):
@@ -238,24 +250,34 @@ class InitializeTracks(object):
         number of polar divisions can be specified (2 or 3)
         returns ([polar weight per division], [sin-theta_polar per division])
         """
+        polar_wt_total = 0
         print "Calculating polar weights..."
         if self.n_p == 2:
             self.omega_p = [0.212854 , 0.787146]
             self.sintheta_p = [0.363900 , 0.899900]
-
+            polar_wt_total = self.omega_p[0] + self.omega_p[1]
+            polar_angle_total = self.sintheta_p[0] + self.sintheta_p[1]
         elif self.n_p == 3:
-            self.wp = [0.046233, 0.283619, 0.670148]
+            self.omega_p = [0.046233, 0.283619, 0.670148]
             self.sintheta_p = [0.166648, 0.537707, 0.932954]
-
+            polar_wt_total = self.omega_p[0] + self.omega_p[1] + self.omega_p[2]
+            polar_angle_total = self.sintheta_p[0] + self.sintheta_p[1] + self.sintheta_p[2]
         else:
             print "Error: must use 2 or 3 polar divisions for polar quadrature."
 
+
+        print "w_p:"
         print self.omega_p
+        print "sin_theta_p:"
         print self.sintheta_p
+        print "omega_p_total = %f" %(polar_wt_total)
+        print "sintheta_p_total = %f\n\n" %(polar_angle_total)
         return self.omega_p, self.sintheta_p
 
     def findIntersection(self):
-
+        self.num_segments=0 #increments index for storing segments
+        print "Finding intersection points..."
+        
         for i in range(0,self.num_azim2):
             for j in range(int(self.ntot[i])):
                 cx0 = self.width/2
@@ -263,39 +285,49 @@ class InitializeTracks(object):
                 x0, y0 = self.startpoint[i][j]
                 x1, y1 = self.endpoint[i][j]
 
-                print "Finding intersection points..."
 
-                raylen = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2 )
 
+                #raylen = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2 )
+                raylen = self.lengthTwoPoints(x0, x1, y0, y1)
+
+                """
                 print "Ray length:"
                 print raylen
-
+                """
+                
                 xproj = (x1 - x0) / raylen
                 yproj = (y1 - y0) / raylen
-                #consider putting a math.fabs() around these to prevent negative values if the math gets screwy?
+                
 
+                """
                 print "x, y projections:"
                 print xproj
                 print yproj
+                """
 
                 close = xproj * (cx0 - x0) + yproj * (cy0 - y0)
 
+                """
                 print "close to circle:"
-
                 print close
+                """
 
                 ex = xproj * close + x0
                 ey = yproj * close + y0
 
+                """
                 print "Line point closest to circle center:"
-
                 print "(%f, \t %f)"%(ex, ey)
+                """
 
                 dist_center = math.sqrt((ex - cx0) ** 2 + (ey - cy0) ** 2)
 
+
+                """
                 print "distance to center from line:"
 
                 print dist_center
+                """
 
                 if dist_center < self.radius:
                     #distance from close to circle intersection point
@@ -306,21 +338,111 @@ class InitializeTracks(object):
                     fy = (close - dclose) * yproj + y0
                     self.intersect1[i][j] = (fx, fy)
 
+                    #store first segment: from startpoint to intersect1
+                    self.segmentStore(x0,fx, y0, fy, self.num_segments)
+                    self.num_segments += 1 #increment to store next segment
+
                     #second intersection point
                     gx = (close + dclose) * xproj + x0
                     gy = (close + dclose) * yproj + y0
                     self.intersect2[i][j] = (gx, gy)
 
+                    #store second segment: from intersect1 to intersect2
+                    self.segmentStore(fx, gx, fy, gy, self.num_segments)
+                    self.num_segments += 1 #increment to store next segment
+
+                    #store third segment: from intersect2 to endpoint
+                    self.segmentStore(gx, x1, gy, y1, self.num_segments)
+                    self.num_segments += 1
+
                     print "Line intersects!"
 
                     print "First point: (%.3f, %.3f)" %(fx, fy)
-                    print "Second point: (%.3f, %.3f" %(gx, gy)
-
+                    print "Second point: (%.3f, %.3f\n" %(gx, gy)
 
                 elif dist_center == self.radius:
-                    print "line is tangent"
-                    #return
+                    print "line is tangent\n"
+                    #treat as a miss. store whole track as 1 segment.
+                    #later could improve this by calculating the point where it hits, segmenting into 2 at that point
+
+                    self.segmentStore(x0, x1, y0, y1, self.num_segments)
+                    self.num_segments += 1
+
                     #point e is tangent to circle; brushes but does not enter.
                 else:
-                    print "line does not intersect"
-                    #return
+                    self.segmentStore(x0, x1, y0, y1, self.num_segments)
+                    self.num_segments += 1
+                    #print "line does not intersect"
+
+
+    def lengthTwoPoints(self, x1, x2, y1, y2):
+        length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
+        return length
+
+    def segmentStore(self, x1, x2, y1, y2, k):
+        self.segstart[k] = (x1, y1)
+        self.segend[k] = (x2, y2)
+        self.seglength[k] = self.lengthTwoPoints(x1, x2, y1, y2)
+
+
+    def plotSegments(self):
+
+        fig1 = plt.figure()
+
+        ax1 = fig1.add_subplot(111, aspect='equal')
+
+        plt.axis([0, self.width, 0, self.height])
+
+        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+
+        ax1.add_patch(c)
+
+        if not (self.num_rings == 0):
+
+            rings = np.zeros(self.num_rings)
+
+            for k in range(len(self.ring_radii)):
+
+                ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
+
+                ax1.add_patch(ring)
+
+
+
+        for k in range(self.num_segments):
+
+
+            x1 = (self.segstart[k][0])
+
+            x2 = (self.segend[k][0])
+
+            if x1 == x2:
+
+                print "Error! X values are equal for i = %d, j = %d" %(i,j)
+
+                print "x1 = %f \t x2 = %f" %(x1, x2)
+
+            y1 = self.segstart[k][1]
+
+            y2 = self.segend[k][1]
+
+            if y1 == y2:
+
+                print "Error! y values are equal for i= %d, j = %f" %(i,j)
+
+                print "y1 = %f \t y2 = %f" %(y1, y2)
+
+            xvals = [x1, x2]
+
+            yvals = [y1,y2]
+
+
+            plt.plot(xvals, yvals)
+
+
+        print "plotting segments..."
+
+        plt.show()
+
+    def getFSRVolumes(self):
+        
