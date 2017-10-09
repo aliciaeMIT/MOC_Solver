@@ -38,6 +38,7 @@ class InitializeTracks(object):
         self.segstart = np.empty((num_azim * 100), dtype = object)
         self.segend = np.empty((num_azim * 100), dtype = object)
         self.seglength = np.empty((num_azim * 100), dtype = object)
+        self.segangle = np.empty((num_azim * 100), dtype = object)
 
     def getStart(self):
         print "Getting ray entrance coordinates...\n"
@@ -220,26 +221,27 @@ class InitializeTracks(object):
         """
         omega_m_tot = 0
         for i in range(self.num_azim2):
+            """  this commented out block does not allow the sum of all quadrature weights to equal 2pi. 
             if (i == 0):
                 self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + self.phi_eff[i]) / (2 * math.pi)
                 omega_m_tot += self.omega_m[i]
-            elif (i < (self.num_azim2 - 1)):
-                self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i-1])/ 2)) / (2 * math.pi)
+            elif (i < (self.num_azim2-1)):
+                self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i-1])/ 2)) / (2 * math.pi )
                 omega_m_tot += self.omega_m[i]
             else:
-                self.omega_m[i] = (2 * math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i-1]) / 2)   / (2 * math.pi)
+                self.omega_m[i] = (2 * math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i-1]) / 2)   / (2 * math.pi )
                 omega_m_tot += self.omega_m[i]
             """
             if (i == 0):
-                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) #/ (2 * math.pi)
+                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi)
                 omega_m_tot += self.omega_m[i]
             elif (i < (self.num_azim2 - 1)):
-                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) #/ (2 * math.pi)
+                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) / (2 * math.pi)
                 omega_m_tot += self.omega_m[i]
             else:
-                self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2) #/ (2 * math.pi)
+                self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2) / (2 * math.pi)
                 omega_m_tot += self.omega_m[i]
-            """
+            #"""
         print "Calculating azimuthal weights...."
         print self.omega_m
         print "Total azimuthal weight sum: %f\n\n" %(omega_m_tot)
@@ -276,7 +278,7 @@ class InitializeTracks(object):
 
     def findIntersection(self):
         self.num_segments=0 #increments index for storing segments
-        print "Finding intersection points..."
+        print "Finding intersection points...\n\n"
         
         for i in range(0,self.num_azim2):
             for j in range(int(self.ntot[i])):
@@ -286,8 +288,6 @@ class InitializeTracks(object):
                 x1, y1 = self.endpoint[i][j]
 
 
-
-                #raylen = math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2 )
                 raylen = self.lengthTwoPoints(x0, x1, y0, y1)
 
                 """
@@ -339,7 +339,7 @@ class InitializeTracks(object):
                     self.intersect1[i][j] = (fx, fy)
 
                     #store first segment: from startpoint to intersect1
-                    self.segmentStore(x0,fx, y0, fy, self.num_segments)
+                    self.segmentStore(x0,fx, y0, fy, self.num_segments, i)
                     self.num_segments += 1 #increment to store next segment
 
                     #second intersection point
@@ -348,29 +348,30 @@ class InitializeTracks(object):
                     self.intersect2[i][j] = (gx, gy)
 
                     #store second segment: from intersect1 to intersect2
-                    self.segmentStore(fx, gx, fy, gy, self.num_segments)
+                    self.segmentStore(fx, gx, fy, gy, self.num_segments, i)
                     self.num_segments += 1 #increment to store next segment
 
                     #store third segment: from intersect2 to endpoint
-                    self.segmentStore(gx, x1, gy, y1, self.num_segments)
+                    self.segmentStore(gx, x1, gy, y1, self.num_segments, i)
                     self.num_segments += 1
 
+                    """
                     print "Line intersects!"
 
                     print "First point: (%.3f, %.3f)" %(fx, fy)
                     print "Second point: (%.3f, %.3f\n" %(gx, gy)
-
+                    """
                 elif dist_center == self.radius:
                     print "line is tangent\n"
                     #treat as a miss. store whole track as 1 segment.
                     #later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    self.segmentStore(x0, x1, y0, y1, self.num_segments)
+                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i)
                     self.num_segments += 1
 
                     #point e is tangent to circle; brushes but does not enter.
                 else:
-                    self.segmentStore(x0, x1, y0, y1, self.num_segments)
+                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i)
                     self.num_segments += 1
                     #print "line does not intersect"
 
@@ -379,10 +380,11 @@ class InitializeTracks(object):
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
         return length
 
-    def segmentStore(self, x1, x2, y1, y2, k):
+    def segmentStore(self, x1, x2, y1, y2, k, i):
         self.segstart[k] = (x1, y1)
         self.segend[k] = (x2, y2)
         self.seglength[k] = self.lengthTwoPoints(x1, x2, y1, y2)
+        self.segangle[k] = i  #store angle index i so phi_eff, w_m[i] can be retrieved later
 
 
     def plotSegments(self):
@@ -445,4 +447,30 @@ class InitializeTracks(object):
         plt.show()
 
     def getFSRVolumes(self):
+
+        for k in range(self.num_segments):
+            pass
+
+
+        """
+        following section is for computing TOTAL area/volumes and quadrature weights
+        to get area only, set p range to 1. should get the area of the pincell out.
+        To get total FSR volumes: summing over polar angles and all segments
+        """
+        area = 0
+        volume = 0
+        quadweight = 0
+
+
+        for p in range(self.n_p):    #loop over polar angles
+            for k in range(self.num_segments):  #loop over all segments
+                i = self.segangle[k]
+
+                quadweight +=  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]
+                area +=  self.omega_m[i] * self.t_eff[i] * self.seglength[k]
+                volume += self.omega_m[i] * self.t_eff[i] * self.seglength[k] *  self.sintheta_p[p]
         
+        #estimated_volume1 = (4/3) * math.pi * (self.width / math.sqrt(2)) ** 3
+        #expected_area = self.width * self.height     #area of pincell
+        #print "volume calculated = %f \nvolume expected = %f \n" %(volume, estimated_volume)
+        #print "area calculated = %f \nArea expected = %f \n" %(area, expected_area)
