@@ -18,6 +18,7 @@ class MOCFlux(object):
         self.ntot = ntot
         self.q_seg = q_seg
         self.segsource = seg_source
+        self.delta_flux = np.zeros((num_segments))
 
 
     def exponentialTerm(self, seg_length, seg_source):
@@ -40,54 +41,73 @@ class MOCFlux(object):
         return sigma_t
 
     def totalAngularFlux(self, psi_in, seg_source):
-        k = 0
+
         flux_in = psi_in
         l=0
-        #count = 0
+
+        i0 = 0
+        j0 = 0
+        k= 0
+        diff =1
+
         for p in range(self.n_p):                                       #loop over polar angles
-            for i in range(self.num_azim):                              #loop over azimuthal angles
-                for j in range(int(self.ntot[i])):                           #loop over tracks
+            for i in range(i0, self.num_azim):
+                #loop over azimuthal angles
+                for j in range(j0, int(self.ntot[i])):                           #loop over tracks
                     #for l in [0,1]:                                     #loop forward and backward for each track
                     seglen_count = 0
                     counter = self.tracklength[i][j]
                     count = 0
-                    while seglen_count < self.tracklength[i][j]: #loop over segments in each track
+                    diff = round((counter - seglen_count), 4)
+
+                    while not diff == 0:                 #loop over segments in each track
                         count += 1
 
                         seglen_count += self.seglength[k]
 
-                        #delta_flux = self.angularFlux(flux_in, self.q_seg[k], self.seglength[k], self.segsource[k])
-                        delta_flux = self.angularFlux(flux_in, 1,1,1)
-                        flux_in = flux_in - delta_flux
+                        diff = round((counter - seglen_count), 4)
 
-                        if count > 1 and seglen_count == self.tracklength[i][j] and l == 0:
+                        self.delta_flux[k] = self.angularFlux(flux_in, self.q_seg[k], self.seglength[k], self.segsource[k])
+
+                        flux_in = flux_in - self.delta_flux[k]
+                        print "flux in %f \t delta flux %f \t k %d" %(flux_in, self.delta_flux[k], k)
+
+                        if count > 1 and diff == 0 and l == 0:
                             l += 1
                             seglen_count = 0
                             k -= 1
-                        #elif count > 1 and seglen_count == self.tracklength[i][j] and l > 0:
+                            diff = 1
 
-                        if count > 3 and seglen_count < self.tracklength[i][j]:
+                        if count > 3 and diff !=0:
                             k -= 2
-                        if count > 3 and seglen_count == self.tracklength[i][j] and l > 0:
+                        if count > 3 and diff == 0 and l>0:
                             k += 3
+                            l=0
+                            seglen_count = 0
                             continue
-                        k += 1
+                        else:
+                            k += 1
+                    if k >= self.num_segments:
+                        break
+                if k >= self.num_segments:
+                    break
+            if k >= self.num_segments:
+                break
 
 
-                        """
-                        if count > 1 and l < 1:
-                            k -= 1
-                            l += 1
-                        elif count > 1 and l >= 1:
-                            l = 0
-                            k += count
-                         """
+    def scalarFlux(self, sigma, area, omega_m, omega_p, omega_k, sinthetap, segangle):
+        for k in range(self.num_segments):
+            sum1 = 1
+            for p in range(self.n_p):
+                index = segangle[k][0]
+                sum1 += omega_m[index] * omega_p[p] * omega_k[index] * sinthetap[p] * self.delta_flux[k]
 
-                    """if k < self.num_segments:
-                        continue
-                    else:
-                        break"""
+            self.psi_scalar[k] = ((4 * math.pi) / (1+ sigma[k])) + (1 / area[k]) * (sum1)
 
 
-    def scalarFlux(self):
-        pass
+        max1 = max(self.psi_scalar)
+
+        for k in range(self.num_segments):
+            self.psi_scalar[k] = self.psi_scalar[k] / max1
+            print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
+        #for k in range(self.num_segments):
