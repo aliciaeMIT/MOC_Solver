@@ -19,6 +19,7 @@ class MOCFlux(object):
         self.q_seg = q_seg
         self.segsource = seg_source
         self.delta_flux = np.zeros((num_segments))
+        self.flux_out = 0
 
 
     def exponentialTerm(self, seg_length, seg_source):
@@ -92,6 +93,7 @@ class MOCFlux(object):
                 if k >= self.num_segments:
                     break
             if k >= self.num_segments:
+                self.flux_out = flux_in
                 break
 
 
@@ -102,7 +104,7 @@ class MOCFlux(object):
                 index = segangle[k][0]
                 sum1 += omega_m[index] * omega_p[p] * omega_k[index] * sinthetap[p] * self.delta_flux[k]
                 sum2 = sum1
-                sumsum = 1
+
 
             self.psi_scalar[k] = ((4 * math.pi) / (sigma[k]))*(self.q_seg[k] + (1 / area[k]) * (sum1))
             scalar1 = self.psi_scalar[k]
@@ -115,6 +117,9 @@ class MOCFlux(object):
         print max1
         print "\n"
 
-        for k in range(self.num_segments):
-            self.psi_scalar[k] = self.psi_scalar[k] / max1
-            print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
+        if max1 == 'nan' or round(max1,5) == 0.00000:
+            pass
+        else:
+            for k in range(self.num_segments):
+                self.psi_scalar[k] = self.psi_scalar[k] / max1
+                print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
