@@ -97,17 +97,24 @@ class MOCFlux(object):
 
     def scalarFlux(self, sigma, area, omega_m, omega_p, omega_k, sinthetap, segangle):
         for k in range(self.num_segments):
-            sum1 = 1
+            sum1 = 0
             for p in range(self.n_p):
                 index = segangle[k][0]
                 sum1 += omega_m[index] * omega_p[p] * omega_k[index] * sinthetap[p] * self.delta_flux[k]
+                sum2 = sum1
+                sumsum = 1
 
-            self.psi_scalar[k] = ((4 * math.pi) / (1+ sigma[k])) + (1 / area[k]) * (sum1)
+            self.psi_scalar[k] = ((4 * math.pi) / (sigma[k]))*(self.q_seg[k] + (1 / area[k]) * (sum1))
+            scalar1 = self.psi_scalar[k]
+            sig1 = sigma[k]
+            areaa = area[k]
 
 
         max1 = max(self.psi_scalar)
+        print "max scalar flux:"
+        print max1
+        print "\n"
 
         for k in range(self.num_segments):
             self.psi_scalar[k] = self.psi_scalar[k] / max1
             print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
-        #for k in range(self.num_segments):

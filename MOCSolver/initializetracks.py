@@ -40,6 +40,8 @@ class InitializeTracks(object):
         self.seglength = np.empty((num_azim * 100), dtype = object)
         self.segangle = np.empty((num_azim * 100), dtype = object)
         self.segvolume = np.empty((num_azim * 100), dtype = object)
+        self.segarea = np.empty((num_azim * 100), dtype = object)
+        self.segmidpt = np.empty((num_azim * 100), dtype = object)
         self.segsource = np.empty((num_azim * 100), dtype = object)
         self.tracklengths = np.empty((num_azim, 100), dtype = object)
 
@@ -125,10 +127,10 @@ class InitializeTracks(object):
             for k in range(len(self.ring_radii)):
                 ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
                 ax1.add_patch(ring)
-
+        #zed = 0
         for i in range(0, self.num_azim2):
-            
-            
+        #for i in [zed, self.num_azim2-zed-1]:
+
             counter = int(self.ntot[i])
 
             for j in range(counter):
@@ -157,7 +159,7 @@ class InitializeTracks(object):
                     xi2, yi2 = self.intersect2[i][j]
                     plt.plot(xi1, yi1,'ro')
                     plt.plot(xi2, yi2, 'go')
-                    
+
         print "plotting tracks..."
 
 
@@ -181,13 +183,15 @@ class InitializeTracks(object):
             self.phi[i] = math.pi / self.num_azim2 * (0.5 + i)
             print "Phi = %f" %(math.degrees(self.phi[i]))
             self.nx[i] = int(math.fabs((self.width / self.spacing) * math.sin(self.phi[i])) + 1)
+            #self.nx[i] = int(math.fabs((self.width / self.spacing) * math.sin(self.phi[i])) + 1)
             print "nx = %f" %(self.nx[i])
-            self.ny[i] = int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i])) + 1)
+           # self.ny[i] = int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i])) + 1)
+            self.ny[i] = int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i])))
             print "ny = %f" %(self.ny[i])
             self.ntot[i] = (self.nx[i] + self.ny[i])
             print "ntot = %f" %(self.ntot[i])
-            #self.phi_eff[i] = (math.atan((self.height * self.nx[i]) / (self.width * self.ny[i])))
-            self.phi_eff[i] = (math.atan2((self.height * self.nx[i]) , (self.width * self.ny[i])))
+            self.phi_eff[i] = (math.atan((self.height * self.nx[i]) / (self.width * self.ny[i])))
+            #self.phi_eff[i] = (math.atan2((self.height * self.nx[i]) , (self.width * self.ny[i])))
             print "phi_eff = %f" % (math.degrees(self.phi_eff[i]))
             self.phi_comp[i] = (math.pi - self.phi_eff[i])   # self.phi_eff[i] + (math.pi/2)
             #print "phi_comp = %f" % (math.degrees(self.phi_comp[i]))
@@ -317,7 +321,8 @@ class InitializeTracks(object):
                     self.intersect1[i][j] = (fx, fy)
 
                     #store first segment: from startpoint to intersect1
-                    self.segmentStore(x0,fx, y0, fy, self.num_segments, i, 0)
+                    self.segmentStore(x0,fx, y0, fy, self.num_segments, i, j, 0)
+                    self.segmidpt[self.num_segments] = self.getMidpoint(x0, y0, fx, fy)
                     self.num_segments += 1 #increment to store next segment
 
                     #second intersection point
@@ -326,11 +331,13 @@ class InitializeTracks(object):
                     self.intersect2[i][j] = (gx, gy)
 
                     #store second segment: from intersect1 to intersect2
-                    self.segmentStore(fx, gx, fy, gy, self.num_segments, i, 1)
+                    self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
+                    self.segmidpt[self.num_segments] = self.getMidpoint(fx, fy, gx, gy)
                     self.num_segments += 1 #increment to store next segment
 
                     #store third segment: from intersect2 to endpoint
-                    self.segmentStore(gx, x1, gy, y1, self.num_segments, i, 0)
+                    self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
+                    self.segmidpt[self.num_segments] = self.getMidpoint(gx, gy, x1, y1)
                     self.num_segments += 1
 
                     """
@@ -344,12 +351,14 @@ class InitializeTracks(object):
                     #treat as a miss. store whole track as 1 segment.
                     #later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i, 0)
+                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    self.segmidpt[self.num_segments] = self.getMidpoint(x0,y0, x1, y1)
                     self.num_segments += 1
 
                     #point e is tangent to circle; brushes but does not enter.
                 else:
-                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i, 0)
+                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    self.segmidpt[self.num_segments] = self.getMidpoint(x0,y0, x1, y1)
                     self.num_segments += 1
                     #print "line does not intersect"
 
@@ -358,11 +367,16 @@ class InitializeTracks(object):
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
         return length
 
-    def segmentStore(self, x1, x2, y1, y2, k, i, q):
+    def getMidpoint(self, x1, y1, x2, y2):
+        xc = abs((x2 - x1) / 2)
+        yc = abs((y2-y1)/2)
+        return (xc, yc)
+
+    def segmentStore(self, x1, x2, y1, y2, k, i, j, q):
         self.segstart[k] = (x1, y1)
         self.segend[k] = (x2, y2)
         self.seglength[k] = self.lengthTwoPoints(x1, x2, y1, y2)
-        self.segangle[k] = i  #store angle index i so phi, omega_m[i] can be retrieved later
+        self.segangle[k] = (i,j)  #store angle index i so phi, omega_m[i] can be retrieved later
         self.segsource[k] = q     #1 for fuel region; 0 for moderator
 
 
@@ -425,6 +439,17 @@ class InitializeTracks(object):
 
         plt.show()
 
+    def getFSRAreas(self):
+        area = 0
+        
+        quadweight = 0
+        for k in range(self.num_segments):  #loop over all segments
+            i = self.segangle[k][0]
+            quadweight =  self.omega_m[i]  * self.t_eff[i]
+            area +=  quadweight * self.seglength[k]
+            self.segarea[k] = quadweight * self.seglength[k]
+
+
     def getFSRVolumes(self):
                    
         print "Calculating FSR volumes..."
@@ -438,17 +463,113 @@ class InitializeTracks(object):
         quadweight = 0
 
 
+
         for p in range(self.n_p):    #loop over polar angles
             for k in range(self.num_segments):  #loop over all segments
-                i = self.segangle[k]
-                self.segvolume[k] = self.omega_m[i] * self.t_eff[i] * self.seglength[k] *  self.sintheta_p[p]
+                i = self.segangle[k][0]
+                self.segvolume[k] = self.omega_m[i] * self.t_eff[i] * self.seglength[k] *  self.sintheta_p[p]        
 
                 quadweight +=  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]
                 area +=  self.omega_m[i] * self.t_eff[i] * self.seglength[k]
                 volume += self.segvolume[k]
-                #volume += self.omega_m[i] * self.t_eff[i] * self.seglength[k] *  self.sintheta_p[p]
         
         #estimated_volume = (4/3) * math.pi * (self.width / math.sqrt(2)) ** 3
         #expected_area = self.width * self.height     #area of pincell
         #print "volume calculated = %f \nvolume expected = %f \n" %(volume, estimated_volume)
         #print "area calculated = %f \nArea expected = %f \n" %(area, expected_area)
+
+
+    def plotFluxPasses(self):
+
+        fig1 = plt.figure()
+
+        ax1 = fig1.add_subplot(111, aspect='equal')
+
+        plt.axis([0, self.width, 0, self.height])
+
+        #c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+
+        #ax1.add_patch(c)
+
+        tempvar = 1
+        i = tempvar
+        jmax = int(self.ntot[i])
+        step = int(self.nx[i])
+        loop1 =0
+        jstart = 0
+        for j in range(jstart, jmax, step):
+
+            if loop1% 2 == 0:
+                i = tempvar
+            else:
+                i = self.num_azim2 - i - 1
+
+
+            x1 = (self.startpoint[i][j][0])
+
+            x2 = (self.endpoint[i][j][0])
+
+            y1 = self.startpoint[i][j][1]
+
+            y2 = self.endpoint[i][j][1]
+
+            xvals = [x1, x2]
+
+            yvals = [y1,y2]
+
+
+            plt.plot(xvals, yvals)
+            loop1 += 1
+
+        loop2 = loop1
+        for j in range(int(self.ntot[tempvar] - jstart-1), -1*step, -1*step):
+            if loop2%2 == 0:
+                #i = self.num_azim2 - i - 1
+                i = tempvar
+            else:
+                #i = tempvar
+                i = self.num_azim2 - i - 1
+
+            x1 = (self.startpoint[i][j][0])
+            x2 = (self.endpoint[i][j][0])
+            y1 = self.startpoint[i][j][1]
+            y2 = self.endpoint[i][j][1]                             
+            xvals = [x1, x2]
+            yvals = [y1,y2]
+
+            plt.plot(xvals, yvals)
+            loop2 += 1
+
+
+        plt.show()
+
+    def plotScalarFlux(self, scalarflux):
+
+        fig1 = plt.figure()
+        ax1 = fig1.add_subplot(111, aspect='equal')
+        plt.axis([0, self.width, 0, self.height])
+        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        ax1.add_patch(c)
+        xvals = np.zeros(len(scalarflux))
+        yvals = np.zeros(len(scalarflux))
+        fluxes = np.zeros(len(scalarflux))
+        coords = np.zeros(len(scalarflux))
+
+        for k in range(self.num_segments):
+            x1 = self.segmidpt[k][0]
+            y1 = self.segmidpt[k][1]
+            coords[k] = (x1, y1, k)
+            xvals[k] = x1
+            yvals[k] = y1
+            fluxes[k] = scalarflux[k]
+        
+        #fluxes = np.reshape(scalarflux, [len(xvals), len(yvals)])
+        #xvals, yvals = np.meshgrid(xvals,yvals)
+        #fluxes = np.array(scalarflux)
+
+        #plt.imshow(scalarflux)
+        #plt.pcolormesh(xvals, yvals, fluxes.reshape(xvals.shape))
+        heatmap, _, _ = np.histogram2d(xvals, yvals, weights=fluxes)
+        plt.clf()
+        plt.imshow(heatmap)
+        plt.show()
