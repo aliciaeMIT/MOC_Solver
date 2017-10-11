@@ -3,9 +3,10 @@ from geometry import Geometry
 from flatsource import FlatSourceApproximation
 from flux import MOCFlux
 from convergence import ConvergenceTest
+import math
 
-num_azim = 16 #number of azimuthal angles desired
-t = 0.05#track spacing desired, cm
+num_azim = 4 #number of azimuthal angles desired
+t = 0.5#track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -17,15 +18,37 @@ q_mod = 0 #no source in moderator
 ndensity_fuel = 2.2e22 #atoms/cc
 ndensity_mod = 1.0e21 #at/cc
 
-sigma_a = 1 * 1e-24
+sigma_a = 0.25
 sigma_r = (11.4 + 8)* 1e-24
 
-#sigma_t_fuel = 1e5 #for computing Dancoff factors
+psi_in = 0 #initial guess for flux in
+
+check = ConvergenceTest()
+
+#turn test cases on and off
+test_sourcexsconst = False
+test_qpropto = False
+test_dancoff = True
+
+
 sigma_t_fuel = sigma_r * ndensity_fuel
 sigma_t_mod = sigma_a * ndensity_mod
 
 
-psi_in = 0 #initial guess for flux in
+if test_sourcexsconst:
+    q_mod, sigma_t_mod = check.sourceXSConstTest(q_fuel, sigma_t_fuel)
+
+if test_qpropto:
+    q_fuel, q_mod = check.sourceProptoXSTest(sigma_t_fuel, sigma_t_mod)
+
+if test_dancoff:
+    q_fuel, q_mod, psi_in, sigma_t_fuel = check.dancoffFactor()
+    #q_fuel = 1
+    #q_mod = 0
+    #psi_in = 0
+    #sigma_t_fuel = 1e5
+
+
 
 refined = Geometry(w, h, r, num_rings)
 #segments.createRings()
@@ -47,7 +70,7 @@ tracks.getFSRVolumes()
 tracks.getFSRAreas()
 
 source = FlatSourceApproximation(q_fuel, q_mod, tracks.segsource)
-print "Determining source values for segment regions..."
+
 source.computeSource(tracks.num_segments, sigma_t_mod, sigma_t_fuel)
 
 flux = MOCFlux(tracks.num_segments, sigma_t_fuel, sigma_t_mod, tracks.seglength, tracks.tracklengths, tracks.n_p, tracks.num_azim2, tracks.ntot, source.qseg, tracks.segsource)
@@ -55,10 +78,10 @@ psi_in1 = psi_in
 
 
 
-tol = 1e-7
+tol = 1e-10
 converged = False
 psi_old = flux.psi_scalar
-check = ConvergenceTest()
+
 iter = 0
 
 #for count in range(30):
@@ -69,9 +92,21 @@ while not converged:
     psi_in1 = flux.flux_out
     if iter > 1:
         converged = check.isConverged(flux.psi_scalar, psi_old, tol)
+    else:
+        dancoff_flux0 = 0.4e-4#flux.flux_out
     psi_old = flux.psi_scalar
+dancoff_flux1 = flux.flux_out
 
+if test_dancoff:
+    temp = 4 * math.pi * q_fuel / sigma_t_fuel
+    temp1 = ((4 * math.pi * q_fuel / sigma_t_fuel) - dancoff_flux1)
+    temp2 = ((4 * math.pi * q_fuel / sigma_t_fuel) - dancoff_flux0)
+    temp3 = (4 * math.pi - dancoff_flux1)/(4 * math.pi -dancoff_flux0)
+    temp4 = temp1 / temp2
+    temp5 = dancoff_flux1/dancoff_flux0
+    dancoff_c = 1 - ((4 * math.pi * q_fuel / sigma_t_fuel) - dancoff_flux1)/((4 * math.pi * q_fuel / sigma_t_fuel) - dancoff_flux0)
+    print "Dancoff factor: %f" %(dancoff_c)
 
-print iter
+print "Iterations to convergence: %d" %(iter)
 #tracks.plotScalarFlux(flux.psi_scalar)
 
