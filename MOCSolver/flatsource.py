@@ -17,12 +17,15 @@ class FlatSourceApproximation(object):
 
 
     def computeSource(self, num_seg, sigma_a, sigma_r):
+        print "Determining source values for segment regions..."
         for k in range(num_seg):
-            self.qseg[k] = self.q_fuel * self.qweight[k]
+            #self.qseg[k] = self.q_fuel * self.qweight[k]
             if self.qweight[k] == 0: #moderator
                 self.sigma_FSR[k] = sigma_a
+                self.qseg[k] = self.q_mod
             elif self.qweight[k] == 1:
                 self.sigma_FSR[k] = sigma_r
+                self.qseg[k] = self.q_fuel
 
 
     def checkVals(self):

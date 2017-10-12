@@ -30,6 +30,7 @@ class MOCFlux(object):
     def angularFlux(self, psi_in, q_seg, seg_length, seg_source):
 
         delta_psi = (psi_in - q_seg / self.segmentXS(seg_source)) * (1 - self.exponentialTerm(seg_length, seg_source))
+        #delta_psi = (q_seg / self.segmentXS(seg_source) - psi_in) * (1 - self.exponentialTerm(seg_length, seg_source))
         return delta_psi
 
 
@@ -70,8 +71,13 @@ class MOCFlux(object):
 
                         self.delta_flux[k] = self.angularFlux(flux_in, self.q_seg[k], self.seglength[k], self.segsource[k])
 
-                        flux_in = flux_in - self.delta_flux[k]
+
                         print "flux in %f \t delta flux %f \t k %d" %(flux_in, self.delta_flux[k], k)
+
+                        flux_in = flux_in - self.delta_flux[k]
+                        if self.segsource[k] == 1:
+                            fout = flux_in
+                            self.flux_out = flux_in
 
                         if count > 1 and diff == 0 and l == 0:
                             l += 1
@@ -93,7 +99,7 @@ class MOCFlux(object):
                 if k >= self.num_segments:
                     break
             if k >= self.num_segments:
-                self.flux_out = flux_in
+
                 break
 
 
@@ -103,10 +109,12 @@ class MOCFlux(object):
             for p in range(self.n_p):
                 index = segangle[k][0]
                 sum1 += omega_m[index] * omega_p[p] * omega_k[index] * sinthetap[p] * self.delta_flux[k]
+                #for debugging:
                 sum2 = sum1
 
 
             self.psi_scalar[k] = ((4 * math.pi) / (sigma[k]))*(self.q_seg[k] + (1 / area[k]) * (sum1))
+            #below is for debugging
             scalar1 = self.psi_scalar[k]
             sig1 = sigma[k]
             areaa = area[k]
