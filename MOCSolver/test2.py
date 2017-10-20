@@ -5,8 +5,8 @@ from flux import MOCFlux
 from convergence import ConvergenceTest
 import math
 
-num_azim = 16 #number of azimuthal angles desired
-t = 0.05#track spacing desired, cm
+num_azim = 8 #number of azimuthal angles desired
+t = 0.25#track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -60,6 +60,37 @@ tracks = InitializeTracks(num_azim, t, w, h, n_p, r, num_rings, refined.ring_rad
 tracks.getTracks()
 tracks.getStart()
 tracks.getEnd()
+
+for i in range(tracks.num_azim2):
+    for j in range(int(tracks.nx[i] + tracks.ny[i])):
+        start = tracks.findBoundaryID(tracks.startpoint[i][j])
+        end = tracks.findBoundaryID(tracks.endpoint[i][j])
+        tracks.boundids[i][j] = (start, end)
+
+for i in range(tracks.num_azim2):
+    for j in range(int(tracks.nx[i] + tracks.ny[i])):
+        startvalx, startvaly = tracks.startpoint[i][j]
+        startvalx = round(startvalx,3)
+        startvaly = round(startvaly,3)
+        startval = (startvalx, startvaly)
+        for g in range(tracks.num_azim2):
+            for h in range(int(tracks.nx[i] + tracks.ny[i])):
+                endvalx, endvaly = tracks.endpoint[g][h]
+                startx2, starty2 = tracks.startpoint[g][h]
+
+                endvalx = round(endvalx,3)
+                endvaly = round(endvaly,3)
+                endval = (endvalx, endvaly)
+
+                startx2 = round(startx2, 3)
+                starty2 = round(starty2,3)
+                start2 = (startx2, starty2)
+
+                if startval == endval or startval == start2 and not ((i,j) == (g,h)):
+                    print "coordinates match! startval[%d][%d] == endval[%d][%d]" %(i,j,g,h)
+                #else:
+                    #print "coords do not match"
+
 tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
@@ -68,7 +99,7 @@ tracks.findIntersection()
 #tracks.plotSegments()
 tracks.getFSRVolumes()
 tracks.getFSRAreas()
-
+"""
 source = FlatSourceApproximation(q_fuel, q_mod, tracks.segsource)
 
 source.computeSource(tracks.num_segments, sigma_t_mod, sigma_t_fuel)
@@ -109,4 +140,4 @@ if test_dancoff:
 
 print "Iterations to convergence: %d" %(iter)
 #tracks.plotScalarFlux(flux.psi_scalar)
-
+"""

@@ -44,6 +44,7 @@ class InitializeTracks(object):
         self.segmidpt = np.empty((num_azim * 100), dtype = object)
         self.segsource = np.empty((num_azim * 100), dtype = object)
         self.tracklengths = np.empty((num_azim, 100), dtype = object)
+        self.boundids = np.empty((num_azim, 100), dtype = object)
 
     def getStart(self):
         print "Getting ray entrance coordinates...\n"
@@ -52,15 +53,15 @@ class InitializeTracks(object):
             for j in range(0, int(self.nx[i])):
                 if (i >= self.num_azim2 / 2):
                    temp = self.dx[i] * (self.nx[i] - j - 0.5)
-                   self.startpoint[i][j] = (temp, 0)
+                   self.startpoint[i][j] = (temp, 0.0)
                 else:
                    temp = (j * self.dx[i] + (self.dx[i] / 2))
-                   self.startpoint[i][j] = (temp, 0)
+                   self.startpoint[i][j] = (temp, 0.0)
 
 
             for j in range(0, int(self.ny[i])):
                 k = self.nx[i] + j
-                temp = ((j * self.dy[i] + (self.dy[i] / 2)))
+                temp = j * self.dy[i] + (self.dy[i] / 2)
                 if (i >= self.num_azim2 / 2):
                     self.startpoint[i][k] = (0.0,temp)
 
@@ -127,9 +128,8 @@ class InitializeTracks(object):
             for k in range(len(self.ring_radii)):
                 ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
                 ax1.add_patch(ring)
-        #zed = 0
+
         for i in range(0, self.num_azim2):
-        #for i in [zed, self.num_azim2-zed-1]:
 
             counter = int(self.ntot[i])
 
@@ -183,21 +183,17 @@ class InitializeTracks(object):
             self.phi[i] = math.pi / self.num_azim2 * (0.5 + i)
             print "Phi = %f" %(math.degrees(self.phi[i]))
             self.nx[i] = int(math.fabs((self.width / self.spacing) * math.sin(self.phi[i])) + 1)
-            #self.nx[i] = int(math.fabs((self.width / self.spacing) * math.sin(self.phi[i])) + 1)
+
             print "nx = %f" %(self.nx[i])
-           # self.ny[i] = int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i])) + 1)
+
             self.ny[i] = int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i])))
             print "ny = %f" %(self.ny[i])
             self.ntot[i] = (self.nx[i] + self.ny[i])
             print "ntot = %f" %(self.ntot[i])
             self.phi_eff[i] = (math.atan((self.height * self.nx[i]) / (self.width * self.ny[i])))
-            #self.phi_eff[i] = (math.atan2((self.height * self.nx[i]) , (self.width * self.ny[i])))
+
             print "phi_eff = %f" % (math.degrees(self.phi_eff[i]))
             self.phi_comp[i] = (math.pi - self.phi_eff[i])   # self.phi_eff[i] + (math.pi/2)
-            #print "phi_comp = %f" % (math.degrees(self.phi_comp[i]))
-
-
-
 
             self.t_eff[i] = ((self.width / self.nx[i]) * math.sin(self.phi_eff[i]))
             print "t_eff = %.3f cm" % (self.t_eff[i])
@@ -210,8 +206,6 @@ class InitializeTracks(object):
             print "\n"
 
             #complementary angle
-           # comp_index =  self.num_azim2 - i -1
-
             comp_index =  self.num_azim2 - i -1
                 
             self.phi_eff[comp_index] = self.phi_comp[i]
@@ -220,8 +214,7 @@ class InitializeTracks(object):
             self.ntot[comp_index] = self.ntot[i]
             self.dx[comp_index] = self.dx[i]
             self.dy[comp_index] = self.dy[i]
-            #self.deff[comp_index] = self.deff[i]
-            #"""
+
             
     def getAngularQuadrature(self):
         """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
@@ -488,22 +481,28 @@ class InitializeTracks(object):
         x, y = coords
         boundary_id = 0 #will remain 0 if not on a boundary.
 
+        x = round(x, 3)
+        y = round(y, 3)
+        xmax = round(self.width,3)
+        ymax = round(self.height, 3)
+        #print "Finding boundary index..."
         #first identify if the point given lies on a boundary or is inside the box
-        if not x == 0 or x == self.width or y ==0 or y == self.height:
+        if not(x == 0.0 or x == xmax or y == 0.0 or y == ymax):
             print "Coordinate is not on boundary"
         else:
-            print "Finding boundary index..."
-            if y == 0: #bottom
+
+            if y == 0.0: #bottom
                 boundary_id = 1
-            elif x == 0: #left
+            elif x == 0.0: #left
                 boundary_id = 2
-            elif y == self.height: #top
+            elif y == ymax: #top
                 boundary_id = 3
-            elif x == self.width:
+            elif x == xmax:
                 boundary_id = 4
             else:
                 print "Error: boundary ID could not be determined! Check rounding/truncation of coordinates?"
 
+        #print "Boundary ID for point (%.4f, %.4f): \t %d" %(x,y,boundary_id)
         return boundary_id
 
 
