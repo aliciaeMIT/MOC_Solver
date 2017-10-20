@@ -76,15 +76,12 @@ source.computeSource(tracks.num_segments, sigma_t_mod, sigma_t_fuel)
 flux = MOCFlux(tracks.num_segments, sigma_t_fuel, sigma_t_mod, tracks.seglength, tracks.tracklengths, tracks.n_p, tracks.num_azim2, tracks.ntot, source.qseg, tracks.segsource)
 psi_in1 = psi_in
 
-
-
 tol = 1e-10
 converged = False
 psi_old = flux.psi_scalar
-
 iter = 0
+dancoff_flux0 = 0.0
 
-#for count in range(30):
 while not converged:
     iter += 1
     flux.totalAngularFlux(psi_in1, tracks.segsource)
@@ -93,7 +90,7 @@ while not converged:
     if iter > 1:
         converged = check.isConverged(flux.psi_scalar, psi_old, tol)
     else:
-        dancoff_flux0 = 0#flux.flux_out
+        dancoff_flux0 = flux.flux_out
     psi_old = flux.psi_scalar
 dancoff_flux1 = flux.flux_out
 
@@ -107,6 +104,7 @@ if test_dancoff:
     #temp5 = dancoff_flux1/dancoff_flux0
     dancoff_c = 1 - ((4 * math.pi * q_fuel / sigma_t_fuel) - dancoff_flux1)/((4 * math.pi * q_fuel / sigma_t_fuel) - dancoff_flux0)
     dcheck = 1 - (temp1/temp2)
+    print "Flux 0/flux conv = %f \t/\t %f" %(dancoff_flux0, dancoff_flux1)
     print "Dancoff factor: %f" %(dancoff_c)
 
 print "Iterations to convergence: %d" %(iter)

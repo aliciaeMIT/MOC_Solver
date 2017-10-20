@@ -478,6 +478,34 @@ class InitializeTracks(object):
         #print "volume calculated = %f \nvolume expected = %f \n" %(volume, estimated_volume)
         #print "area calculated = %f \nArea expected = %f \n" %(area, expected_area)
 
+    def findBoundaryID(self, coords):
+        #finds which boundary a start/endpoint lies on. takes in a tuple of coordinates
+        #only applies for boundary points: where x=0 or x=xmax and y=0 or y=ymax.
+        #boundary 1: bottom (y=0)
+        #boundary 2: left (x=0)
+        #boundary 3: top (y=ymax)
+        #boundary 4: right (x=xmax)
+        x, y = coords
+        boundary_id = 0 #will remain 0 if not on a boundary.
+
+        #first identify if the point given lies on a boundary or is inside the box
+        if not x == 0 or x == self.width or y ==0 or y == self.height:
+            print "Coordinate is not on boundary"
+        else:
+            print "Finding boundary index..."
+            if y == 0: #bottom
+                boundary_id = 1
+            elif x == 0: #left
+                boundary_id = 2
+            elif y == self.height: #top
+                boundary_id = 3
+            elif x == self.width:
+                boundary_id = 4
+            else:
+                print "Error: boundary ID could not be determined! Check rounding/truncation of coordinates?"
+
+        return boundary_id
+
 
     def plotFluxPasses(self):
 
