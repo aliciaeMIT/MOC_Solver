@@ -5,8 +5,8 @@ from flux import MOCFlux
 from convergence import ConvergenceTest
 import math
 
-num_azim = 8 #number of azimuthal angles desired
-t = 0.25#track spacing desired, cm
+num_azim = 16 #number of azimuthal angles desired
+t = 0.2#track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -74,7 +74,9 @@ for i in range(tracks.num_azim2):
         startvaly = round(startvaly,3)
         startval = (startvalx, startvaly)
         for g in range(tracks.num_azim2):
-            for h in range(int(tracks.nx[i] + tracks.ny[i])):
+
+            hval = int(tracks.nx[g] + tracks.ny[g])
+            for h in range(hval):
                 endvalx, endvaly = tracks.endpoint[g][h]
                 startx2, starty2 = tracks.startpoint[g][h]
 
@@ -95,7 +97,7 @@ tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
 #tracks.plotFluxPasses()
-#tracks.plotTracks()
+tracks.plotTracks()
 #tracks.plotSegments()
 tracks.getFSRVolumes()
 tracks.getFSRAreas()

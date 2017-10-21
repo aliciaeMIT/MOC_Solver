@@ -74,9 +74,6 @@ class InitializeTracks(object):
         for i in range(0, self.num_azim2):
 
             slope = math.tan(self.phi_eff[i])
-           # if i > self.num_azim2/2:
-            #    slope = -1 / slope
-
             counter = int(self.nx[i] + self.ny[i])
 
             for j in range(0, counter):
@@ -129,7 +126,8 @@ class InitializeTracks(object):
                 ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
                 ax1.add_patch(ring)
 
-        for i in range(0, self.num_azim2):
+        #for i in range(0, self.num_azim2):
+        for i in [2, self.num_azim2-1-2]:
 
             counter = int(self.ntot[i])
 
