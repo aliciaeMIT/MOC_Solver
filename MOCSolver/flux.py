@@ -131,3 +131,82 @@ class MOCFlux(object):
             for k in range(self.num_segments):
                 self.psi_scalar[k] = self.psi_scalar[k] / max1
                 print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
+
+
+
+class ConvergenceTest(object):
+    def __init__(self):
+        """
+        class for testing convergence using the L2 engineering norm
+        n is the iteration index, i is the vector content index, I is total number of entries in vector.
+        """
+
+    def isConverged(self, vec_n, vec_n1, epsilon):
+        sum1 = 0
+        print "Convergence error:"
+        for i in range(len(vec_n)):
+            if round(vec_n[i],7) == 0:
+                vec_n[i] = 0.000001
+                error1 = ((vec_n[i] - vec_n1[i])/vec_n[i]) ** 2
+                print error1
+            sum1 += error1
+        I = len(vec_n)
+        l2 = math.sqrt((1 / I) * sum1)
+
+        if l2 < epsilon:
+            print "Converged! l2 %f" %(l2)
+            return True
+        else:
+            print "Not converged; l2 %f" %(l2)
+            return False
+
+
+    def sourceProptoXSTest(self, xsfuel, xsmod):
+        """test that sets source in each region proportional to the cross section in that region
+        should yield a flat flux profile if code is functioning correctly"""
+        qfuel = 2 * xsfuel
+        qmod = 2 * xsmod
+        return qfuel, qmod
+
+    def sourceXSConstTest(self, qfuel, sigma_fuel):
+        # angular flux everywhere should equal q/sigma
+        qmod = qfuel
+        sigma_mod = sigma_fuel
+        print "Angular flux should equal %f everywhere when converged" %(qmod/sigma_mod)
+        return qmod, sigma_mod
+
+    def dancoffFactor(self):
+        qfuel = 1e3
+        qmod = 0
+        psi_in = 0
+        sigma_fuel = 1e5
+        return qfuel, qmod, psi_in, sigma_fuel
+
+
+class FlatSourceApproximation(object):
+    def __init__(self, q_fuel, q_mod, qweight):
+
+        """
+        This class generates the source for each flat source (and updates it, if not constant isotropic)
+        """
+
+        self.q_fuel = q_fuel
+        self.q_mod = q_mod
+        self.qweight = qweight
+        self.qseg = np.zeros(1000)
+        self.sigma_FSR = np.zeros(1000)
+
+    def computeSource(self, num_seg, sigma_a, sigma_r):
+        print "Determining source values for segment regions..."
+        for k in range(num_seg):
+            # self.qseg[k] = self.q_fuel * self.qweight[k]
+            if self.qweight[k] == 0:  # moderator
+                self.sigma_FSR[k] = sigma_a
+                self.qseg[k] = self.q_mod
+            elif self.qweight[k] == 1:
+                self.sigma_FSR[k] = sigma_r
+                self.qseg[k] = self.q_fuel
+
+    def checkVals(self):
+        print self.qweight
+

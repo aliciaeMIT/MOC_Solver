@@ -48,3 +48,4 @@ class ConvergenceTest(object):
         psi_in = 0
         sigma_fuel = 1e5
         return qfuel, qmod, psi_in, sigma_fuel
+

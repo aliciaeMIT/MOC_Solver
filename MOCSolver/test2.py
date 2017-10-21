@@ -1,8 +1,8 @@
 from initializetracks import InitializeTracks
-from geometry import Geometry
-from flatsource import FlatSourceApproximation
-from flux import MOCFlux
-from convergence import ConvergenceTest
+#from geometry import Geometry
+from flux import FlatSourceApproximation, MOCFlux, ConvergenceTest
+#from flux import MOCFlux
+#from flux import ConvergenceTest
 import math
 
 num_azim = 16 #number of azimuthal angles desired
@@ -30,7 +30,6 @@ test_sourcexsconst = False
 test_qpropto = False
 test_dancoff = True
 
-
 sigma_t_fuel = sigma_r * ndensity_fuel
 sigma_t_mod = sigma_a * ndensity_mod
 
@@ -49,13 +48,13 @@ if test_dancoff:
     #sigma_t_fuel = 1e5
 
 
+#refined = Geometry(w, h, r, num_rings)
+#refined.createRings()
+#refined.divideSectors()
+#refined.plotFSRs()
+#tracks = InitializeTracks(num_azim, t, w, h, n_p, r, num_rings, refined.ring_radius)
 
-refined = Geometry(w, h, r, num_rings)
-#segments.createRings()
-#segments.divideSectors()
-#segments.plotFSRs()
-
-tracks = InitializeTracks(num_azim, t, w, h, n_p, r, num_rings, refined.ring_radius)
+tracks = InitializeTracks(num_azim, t, w, h, n_p, r)
 
 tracks.getTracks()
 tracks.getStart()
@@ -101,6 +100,7 @@ tracks.plotTracks()
 #tracks.plotSegments()
 tracks.getFSRVolumes()
 tracks.getFSRAreas()
+
 """
 source = FlatSourceApproximation(q_fuel, q_mod, tracks.segsource)
 
@@ -142,4 +142,5 @@ if test_dancoff:
 
 print "Iterations to convergence: %d" %(iter)
 #tracks.plotScalarFlux(flux.psi_scalar)
+
 """

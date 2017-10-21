@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 class InitializeTracks(object):
-    def __init__(self, num_azim, spacing, width, height, num_polar, radius, num_rings, ring_radii):
+    def __init__(self, num_azim, spacing, width, height, num_polar, radius, num_rings = 0, ring_radii = None):
         """
         This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
         """
