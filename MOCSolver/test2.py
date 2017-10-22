@@ -1,12 +1,9 @@
 from initializetracks import InitializeTracks
-#from geometry import Geometry
 from flux import FlatSourceApproximation, MOCFlux, ConvergenceTest
-#from flux import MOCFlux
-#from flux import ConvergenceTest
 import math
 
 num_azim = 16 #number of azimuthal angles desired
-t = 0.05#track spacing desired, cm
+t = 0.1#track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -63,7 +60,7 @@ tracks.makeTracks()
 
 #tracks.getTracks()
 #tracks.getStart()
-tracks.getEnd()
+#tracks.getEnd()
 
 for i in range(tracks.num_azim2):
     for j in range(int(tracks.nx[i] + tracks.ny[i])):
