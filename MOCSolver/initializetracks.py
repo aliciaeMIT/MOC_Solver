@@ -14,35 +14,18 @@ class InitializeTracks(object):
         self.height = height
         self.n_p = num_polar
         self.radius = radius
-        #self.ring_radii = ring_radii
-        #self.num_rings = num_rings
-
-        #self.phi = np.zeros(100)
         self.phi = []
         self.nx = []
         self.ny = []
-        #self.nx = np.zeros(100)
-        #self.ny = np.zeros(100)
         self.ntot = []
-        #self.ntot = np.zeros(100)
-        #self.phi_eff = np.zeros(100)
         self.phi_eff = []
         self.phi_comp = []
-        #self.phi_comp = np.zeros(100)
-        #self.t_eff = np.zeros(100)
         self.t_eff = []
         self.dx = []
         self.dy = []
+        self.startpoint = [[] for _ in range(self.num_azim2)]
+        self.endpoint = [[] for _ in range(self.num_azim2)]
 
-        #self.dx = np.zeros(100)
-        #self.dy = np.zeros(100)
-        #self.deff = np.zeros(100)
-        self.startpoint = np.empty((num_azim, 100), dtype=object)
-        self.endpoint = np.empty((num_azim, 100), dtype=object)
-        self.poss = np.empty(4, dtype = object)
-        self.omega_m = np.zeros(self.num_azim2)
-        self.omega_p = np.zeros(self.n_p)
-        self.sintheta_p = np.zeros(self.n_p)
         self.intersect1 = np.empty((num_azim,100), dtype = object)
         self.intersect2 = np.empty((num_azim,100), dtype = object)
         self.segstart = np.empty((num_azim * 100), dtype = object)
@@ -84,45 +67,30 @@ class InitializeTracks(object):
 
     def getEnd(self):
         print "Getting ray exit coordinates...\n"
-        for i in range(0, self.num_azim2):
+        for i in range(self.num_azim2):
 
             slope = math.tan(self.phi_eff[i])
             counter = int(self.ntot[i])
 
-            for j in range(0, counter):
+            for j in range(counter):
                 x0, y0 = self.startpoint[i][j]
-                b = y0 - slope * x0
-                y = slope * 0 + b
-                y1 = slope * self.width + b
+                poss = []
+                #self.poss[0] = (0, y0 - slope * x0)
+                poss.append((0, y0 - slope * x0))
+                #self.poss[1] = (self.width, y0 + slope * (self.width - x0))
+                poss.append((self.width, y0 + slope * (self.width - x0)))
+                #self.poss[2] = (x0 - y0/slope, 0)
+                poss.append((x0 - y0 / slope, 0))
+                #self.poss[3] = (x0 - (y0 - self.height)/slope, self.height)
+                poss.append((x0 - (y0 - self.height) / slope, self.height))
 
-                x = (- b) / slope
-                x1 = (self.height - b) / slope
-       
-
-                self.poss[0] = (0, y0 - slope * x0)
-                self.poss[1] = (self.width, y0 + slope * (self.width - x0))
-                self.poss[2] = (x0 - y0/slope, 0)
-                self.poss[3] = (x0 - (y0 - self.height)/slope, self.height)
-
-                for k in range(0,4):
-                    diffx = round(math.fabs(x0 - self.poss[k][0]),3)
-                    diffy = round(math.fabs(y0 - self.poss[k][1]),3)
+                for k in range(4):
+                    diffx = round(math.fabs(x0 - poss[k][0]),3)
+                    diffy = round(math.fabs(y0 - poss[k][1]),3)
                     if (diffx == 0.0) and (diffy == 0.0):
                         pass #checks for trivial case where it found the start point, does not save that as a solution
-                    elif (self.poss[k][0] >= 0.00 and self.poss[k][0] <= self.width) and (self.poss[k][1] >= 0.00 and self.poss[k][1] <=self.height):
-                        self.endpoint[i][j] = self.poss[k]
-                       # xtemp, ytemp = self.endpoint[i][j]
-                        """
-                        diffdx = math.fabs(self.endpoint[i][j][0] - self.width)
-                        diffdy = math.fabs(self.endpoint[i][j][1] - self.height)
-                        tolx =  (self.dx[i]/2)
-                        toly =  (self.dy[i]/2)
-                        if (diffdx <= tolx) and (diffdy <= toly):
-                            print "Endpoint too close for i = %d, j = %d, k = %d with dx, dy = %.4f, %.4f" %(i,j,k,self.dx[i], self.dy[i])
-                            print self.endpoint[i][j]
-                        """
-                        #break
-                        #continue
+                    elif (poss[k][0] >= 0.00 and poss[k][0] <= self.width) and (poss[k][1] >= 0.00 and poss[k][1] <=self.height):
+                        self.endpoint[i].append(poss[k])
                     else:
                         pass
 
@@ -136,18 +104,19 @@ class InitializeTracks(object):
             xin[:self.nx[i]] = self.dx[i]*(0.5 + np.arange(self.nx[i]))
             yin[:self.nx[i]] = 0
             yin[self.nx[i]:]= self.dy[i] * (0.5 + np.arange(self.ny[i]))
-            temp1 = math.sin(self.phi[i])
-            temp2 = math.cos(self.phi[i])
-            if math.sin(self.phi[i]) > 0 and math.cos(self.phi[i]) > 0:
+
+            if math.sin(self.phi_eff[i]) > 0 and math.cos(self.phi_eff[i]) > 0:
                 #xin[self.nx:] = 0
                 #redundant to set it to zero; initialized with zeros.
                 pass
-                #print "success: xin=0 for angle %f" %(math.degrees(self.phi[i]))
-            elif math.sin(self.phi[i]) > 0 and math.cos(self.phi[i]) < 0:
+            elif math.sin(self.phi_eff[i]) > 0 and math.cos(self.phi_eff[i]) < 0:
                 xin[self.nx[i]:] = self.width
-                #print "success: xin=width for angle %f" %(math.degrees(self.phi[i]))
             else:
                 print "Error in makeTracks method"
+
+            for j in range(int(self.ntot[i])):
+                self.startpoint[i].append((xin[j], yin[j]))
+                print self.startpoint[i][j]
 
 
 
@@ -157,15 +126,9 @@ class InitializeTracks(object):
         plt.axis([0, self.width, 0, self.height])
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
-        """
-        if not (self.num_rings == 0):
-            rings = np.zeros(self.num_rings)
-            for k in range(len(self.ring_radii)):
-                ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
-                ax1.add_patch(ring)
-        """
-        #for i in range(0, self.num_azim2):
-        for i in [2, self.num_azim2-1-2]:
+
+        for i in range(self.num_azim2):
+        #for i in [3, 7]:
 
             counter = int(self.ntot[i])
 
@@ -218,7 +181,7 @@ class InitializeTracks(object):
             self.phi.append(math.pi / self.num_azim2 * (0.5 + i))
             self.nx.append(int(math.fabs((self.width / self.spacing) * math.sin(self.phi[i])) + 1))
             self.ny.append(int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i]))))
-            self.phi_eff.append(math.atan((self.height * self.nx[i]) / (self.width * self.ny[i])))
+            self.phi_eff.append(math.atan2((self.height * self.nx[i]), (self.width * self.ny[i])))
             self.phi_comp.append(math.pi - self.phi_eff[i])
             self.t_eff.append((self.width / self.nx[i]) * math.sin(self.phi_eff[i]))
             self.dx.append(self.width/self.nx[i])
@@ -227,11 +190,12 @@ class InitializeTracks(object):
 
         for i in range(self.num_azim2/2):
             #complementary angle
-            self.phi_eff.append(self.phi_comp[i-1])
-            self.nx.append(self.nx[i-1])
-            self.ny.append(self.ny[i-1])
-            self.dx.append(self.dx[i-1])
-            self.dy.append(self.dy[i-1])
+            k = i
+            self.phi_eff.append(self.phi_comp[k])
+            self.nx.append(self.nx[k])
+            self.ny.append(self.ny[k])
+            self.dx.append(self.dx[k])
+            self.dy.append(self.dy[k])
             self.phi.append(math.pi / self.num_azim2 * (0.5 + i))
             self.phi_comp.append(math.pi - self.phi_eff[i])
             self.t_eff.append((self.width / self.nx[i]) * math.sin(self.phi_eff[i]))
@@ -256,26 +220,19 @@ class InitializeTracks(object):
         """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
         """
         omega_m_tot = 0
+        self.omega_m = []
         for i in range(self.num_azim2):
-            """  this commented out block does not allow the sum of all quadrature weights to equal 2pi. 
             if (i == 0):
-                self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + self.phi_eff[i]) / (2 * math.pi)
-                omega_m_tot += self.omega_m[i]
-            elif (i < (self.num_azim2-1)):
-                self.omega_m[i] = (((self.phi_eff[i+1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i-1])/ 2)) / (2 * math.pi )
-                omega_m_tot += self.omega_m[i]
-            else:
-                self.omega_m[i] = (2 * math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i-1]) / 2)   / (2 * math.pi )
-                omega_m_tot += self.omega_m[i]
-            """
-            if (i == 0):
-                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi)
+                #self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi)
+                self.omega_m.append((((self.phi[i + 1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             elif (i < (self.num_azim2 - 1)):
-                self.omega_m[i] = (((self.phi[i+1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i-1])/ 2)) / (2 * math.pi)
+                #self.omega_m[i] = (((self.phi[i + 1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i - 1]) / 2)) / (2 * math.pi)
+                self.omega_m.append((((self.phi[i + 1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i - 1]) / 2)) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             else:
-                self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i-1]) / 2) / (2 * math.pi)
+                #self.omega_m[i] = (2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i - 1]) / 2) / (2 * math.pi)
+                self.omega_m.append((2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i - 1]) / 2) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             #"""
         print "Calculating azimuthal weights...."
@@ -284,7 +241,7 @@ class InitializeTracks(object):
         return self.omega_m
 
     def getPolarWeight(self):
-        """determines polar quadrature weights and angles using Tabuchi and Yamamoto (TY) set;
+        """determines polar quadrature weights and angles using Tabuchi  Yamamoto (TY) set;
         number of polar divisions can be specified (2 or 3)
         returns ([polar weight per division], [sin-theta_polar per division])
         """
