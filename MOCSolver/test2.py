@@ -55,7 +55,10 @@ if test_dancoff:
 #tracks = InitializeTracks(num_azim, t, w, h, n_p, r, num_rings, refined.ring_radius)
 
 tracks = InitializeTracks(num_azim, t, w, h, n_p, r)
+tracks.getTracks()
 
+#tracks.makeTracks()
+"""
 tracks.getTracks()
 tracks.getStart()
 tracks.getEnd()
@@ -95,13 +98,16 @@ for i in range(tracks.num_azim2):
 tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
+"""
+
 #tracks.plotFluxPasses()
-tracks.plotTracks()
+#tracks.plotTracks()
 #tracks.plotSegments()
+"""
 tracks.getFSRVolumes()
 tracks.getFSRAreas()
 
-"""
+
 source = FlatSourceApproximation(q_fuel, q_mod, tracks.segsource)
 
 source.computeSource(tracks.num_segments, sigma_t_mod, sigma_t_fuel)
