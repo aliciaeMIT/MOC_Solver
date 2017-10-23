@@ -53,14 +53,7 @@ if test_dancoff:
 
 tracks = InitializeTracks(num_azim, t, w, h, n_p, r)
 tracks.getTracks()
-#tracks.getAngularQuadrature()
-#tracks.getPolarWeight()
-
 tracks.makeTracks()
-
-#tracks.getTracks()
-#tracks.getStart()
-#tracks.getEnd()
 
 for i in range(tracks.num_azim2):
     for j in range(int(tracks.nx[i] + tracks.ny[i])):

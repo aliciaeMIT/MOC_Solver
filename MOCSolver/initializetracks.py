@@ -26,17 +26,17 @@ class InitializeTracks(object):
         self.startpoint = [[] for _ in range(self.num_azim2)]
         self.endpoint = [[] for _ in range(self.num_azim2)]
 
-        self.intersect1 = np.empty((num_azim,100), dtype = object)
-        self.intersect2 = np.empty((num_azim,100), dtype = object)
-        self.segstart = np.empty((num_azim * 100), dtype = object)
-        self.segend = np.empty((num_azim * 100), dtype = object)
-        self.seglength = np.empty((num_azim * 100), dtype = object)
+        # self.segstart = np.empty((num_azim * 100), dtype = object)
+        # self.segend = np.empty((num_azim * 100), dtype = object)
+        #self.seglength = np.empty((num_azim * 100), dtype = object)
         self.segangle = np.empty((num_azim * 100), dtype = object)
         self.segvolume = np.empty((num_azim * 100), dtype = object)
         self.segarea = np.empty((num_azim * 100), dtype = object)
-        self.segmidpt = np.empty((num_azim * 100), dtype = object)
+        #self.segmidpt = np.empty((num_azim * 100), dtype = object)
         self.segsource = np.empty((num_azim * 100), dtype = object)
+
         self.tracklengths = np.empty((num_azim, 100), dtype = object)
+
         self.boundids = np.empty((num_azim, 100), dtype = object)
 
 
@@ -57,9 +57,8 @@ class InitializeTracks(object):
             elif (poss[k][0] >= 0.00 and poss[k][0] <= self.width) and (poss[k][1] >= 0.00 and poss[k][1] <=self.height):
                 return poss[k]
 
-
     def makeTracks(self):
-        self.tracks = []
+        self.tracks = [[] for _ in range(self.num_azim2)]
         print "Getting ray entrance coordinates...\n"
         print "Getting ray exit coordinates...\n"
         for i in range(self.num_azim2):
@@ -82,7 +81,8 @@ class InitializeTracks(object):
             for j in range(int(self.ntot[i])):
                 self.startpoint[i].append((xin[j], yin[j]))
                 self.endpoint[i].append(self.getEnd(i,j))
-
+                thisTrack = SingleTrack(self.startpoint[i][j], self.endpoint[i][j], self.phi_eff[i])
+                self.tracks[i].append(thisTrack)
 
     def plotTracks(self):
         fig1 = plt.figure()
@@ -227,6 +227,8 @@ class InitializeTracks(object):
 
     def findIntersection(self):
         self.num_segments=0 #increments index for storing segments
+        self.intersect1 = [[] for _ in range(self.num_azim2)]
+        self.intersect2 = [[] for _ in range(self.num_azim2)]
         print "Finding intersection points...\n\n"
         
         for i in range(self.num_azim2):
@@ -256,89 +258,78 @@ class InitializeTracks(object):
                     #first intersection point
                     fx = (close - dclose) * xproj + x0
                     fy = (close - dclose) * yproj + y0
-                    self.intersect1[i][j] = (fx, fy)
+                    self.intersect1[i].append((fx, fy))
 
                     #store first segment: from startpoint to intersect1
-                    self.segmentStore(x0,fx, y0, fy, self.num_segments, i, j, 0)
-                    #self.segmidpt[self.num_segments] = self.getMidpoint(x0, y0, fx, fy)
+                    seg1 = self.segmentStore(x0,fx, y0, fy, self.num_segments, i, j, 0)
                     self.num_segments += 1 #increment to store next segment
 
                     #second intersection point
                     gx = (close + dclose) * xproj + x0
                     gy = (close + dclose) * yproj + y0
-                    self.intersect2[i][j] = (gx, gy)
+                    self.intersect2[i].append((gx, gy))
 
                     #store second segment: from intersect1 to intersect2
-                    self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
-                    #self.segmidpt[self.num_segments] = self.getMidpoint(fx, fy, gx, gy)
+                    seg2 = self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
                     self.num_segments += 1 #increment to store next segment
 
                     #store third segment: from intersect2 to endpoint
-                    self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
-                    #self.segmidpt[self.num_segments] = self.getMidpoint(gx, gy, x1, y1)
+                    seg3 = self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
                     self.num_segments += 1
+
+                    self.tracks[i][j].segments = [seg1, seg2, seg3]
 
                 elif dist_center == self.radius:
                     print "line is tangent\n"
+                    self.intersect1[i].append(None)
+                    self.intersect2[i].append(None)
                     #treat as a miss. store whole track as 1 segment.
                     #later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
-                    #self.segmidpt[self.num_segments] = self.getMidpoint(x0,y0, x1, y1)
+                    seg1 = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    self.tracks[i][j].segments = [seg1]
                     self.num_segments += 1
 
                     #point e is tangent to circle; brushes but does not enter.
                 else:
-                    self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
-                    #self.segmidpt[self.num_segments] = self.getMidpoint(x0,y0, x1, y1)
+                    self.intersect1[i].append(None)
+                    self.intersect2[i].append(None)
+                    seg1 = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    self.tracks[i][j].segments = [seg1]
                     self.num_segments += 1
 
+
     def lengthTwoPoints(self, x1, x2, y1, y2):
+        """finds distance between 2 points, returns the length"""
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
         return length
 
     def getMidpoint(self, x1, y1, x2, y2):
+        """honestly can't remember why i wrote this. but it is pretty self-explanatory."""
         xc = abs((x2 - x1) / 2)
         yc = abs((y2-y1)/2)
         return (xc, yc)
 
     def segmentStore(self, x1, x2, y1, y2, k, i, j, q):
-        self.segstart[k] = (x1, y1)
-        self.segend[k] = (x2, y2)
-        self.seglength[k] = self.lengthTwoPoints(x1, x2, y1, y2)
+        start = (x1, y1)
+        end = (x2,y2)
         self.segangle[k] = (i,j)  #store angle index i so phi, omega_m[i] can be retrieved later
         self.segsource[k] = q     #1 for fuel region; 0 for moderator
-
+        newSeg = SingleSegment(start, end, q, self.lengthTwoPoints(x1, x2, y1, y2))
+        return newSeg
 
     def plotSegments(self):
-
+        print "plotSegments needs to be updated to new indexing!"
+        pass
+        """ this needs to be fixed with implementation of objects/storage
         fig1 = plt.figure()
-
         ax1 = fig1.add_subplot(111, aspect='equal')
-
         plt.axis([0, self.width, 0, self.height])
-
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
-
         ax1.add_patch(c)
 
-        if not (self.num_rings == 0):
-
-            rings = np.zeros(self.num_rings)
-
-            for k in range(len(self.ring_radii)):
-
-                ring = patches.Circle((self.width/2, self.height/2), (self.ring_radii[k]), fill=False)
-
-                ax1.add_patch(ring)
-
-
-
         for k in range(self.num_segments):
-
-
             x1 = (self.segstart[k][0])
-
             x2 = (self.segend[k][0])
 
             if x1 == x2:
@@ -368,8 +359,12 @@ class InitializeTracks(object):
         print "plotting segments..."
 
         plt.show()
+        """
 
     def getFSRAreas(self):
+        print "getFSRAreas needs to be updated to new indexing!"
+        pass
+        """
         area = 0
         quadweight = 0
         for k in range(self.num_segments):  #loop over all segments
@@ -377,16 +372,22 @@ class InitializeTracks(object):
             quadweight =  self.omega_m[i]  * self.t_eff[i]
             area +=  quadweight * self.seglength[k]
             self.segarea[k] = quadweight * self.seglength[k]
-
+        """
 
     def getFSRVolumes(self):
-                   
+        print "getFSRAreas needs to be updated to new indexing!"
+
+
+        """
+            this is for computing FSR area/volumes and quadrature weights
+            to get area only, set p range to 1. should get the area of the pincell out.
+            To get total FSR volumes: summing over polar angles and all segments
+        """
+
+        """
         print "Calculating FSR volumes..."
-        """
-        this is for computing FSR area/volumes and quadrature weights
-        to get area only, set p range to 1. should get the area of the pincell out.
-        To get total FSR volumes: summing over polar angles and all segments
-        """
+        
+        
         area = 0
         volume = 0
         quadweight = 0
@@ -406,6 +407,8 @@ class InitializeTracks(object):
         #expected_area = self.width * self.height     #area of pincell
         #print "volume calculated = %f \nvolume expected = %f \n" %(volume, estimated_volume)
         #print "area calculated = %f \nArea expected = %f \n" %(area, expected_area)
+        """
+        pass
 
     def findBoundaryID(self, koords):
         #finds which boundary a start/endpoint lies on. takes in a tuple of koordinates
@@ -440,7 +443,6 @@ class InitializeTracks(object):
 
         #print "Boundary ID for point (%.4f, %.4f): \t %d" %(x,y,boundary_id)
         return boundary_id
-
 
     def plotFluxPasses(self):
 
@@ -549,3 +551,11 @@ class SingleTrack(object):
         self.track_in = None
         self.track_out = None
         self.segments = []
+
+class SingleSegment(object):
+    def __init__(self, start_koords, end_koords, region, length):
+
+        self.start_koords = start_koords
+        self.end_koords = end_koords
+        self.region = region
+        self.length = length
