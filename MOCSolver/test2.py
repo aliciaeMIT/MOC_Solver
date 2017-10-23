@@ -90,8 +90,9 @@ for i in range(tracks.num_azim2):
 tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
-tracks.plotTracks()
+#tracks.plotTracks()
 tracks.reflectRays()
+tracks.plotTrackLinking()
 """
 
 #tracks.plotFluxPasses()

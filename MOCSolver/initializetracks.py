@@ -324,8 +324,9 @@ class InitializeTracks(object):
         (inspired by Paul Romano's MOC solver)
         """
         print "Linking tracks..."
-        for i in range(self.num_azim2/2):
-            reflected_track = self.tracks[-(i+1)]
+        for i in range(int(self.num_azim2/2)):
+            #reflected_track = self.tracks[-(i+1)]
+            reflected_track = self.tracks[self.num_azim2/2+i]
             nx = self.nx[i]
             ny = self.ny[i]
 
@@ -333,9 +334,10 @@ class InitializeTracks(object):
                 if nx <= ny:
                     if j < nx:
                         #rays beginning on bottom, ending on right boundary
-                        k = 2*nx-j-1
+                        k = 2*nx-1-j
                         track.track_in = reflected_track[j]
-                        reflected_track[j].track_in = track
+                        track.track_in.track_in = track
+                        #reflected_track[j].track_in = track
                         track.refl_in = 0
                         reflected_track[j].refl_in = 0
                         track.track_out = reflected_track[k]
@@ -526,17 +528,92 @@ class InitializeTracks(object):
         #print "Boundary ID for point (%.4f, %.4f): \t %d" %(x,y,boundary_id)
         return boundary_id
 
-    def plotFluxPasses(self):
-
-        fig1 = plt.figure()
-
-        ax1 = fig1.add_subplot(111, aspect='equal')
+    def plotTrackLinking(self):
+        #fig1 = plt.figure()
+        nrows = 2
+        ncols = 5
+        fig, axes = plt.subplots(nrows, ncols, figsize = (16,6), sharex=True, sharey=True)
+        axes_list = [item for sublist in axes for item in sublist]
 
         plt.axis([0, self.width, 0, self.height])
 
-        #c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        i = 0
+        j=0
+        starting = self.tracks[i][j].start_koords
+        intrack = self.tracks[i][j]
+        out = intrack.track_out
+        count = 0
 
-        #ax1.add_patch(c)
+        while True:
+            count+=1
+            x1 = intrack.start_koords[0]
+            x2 = intrack.end_koords[0]
+            y1 = intrack.start_koords[1]
+            y2 = intrack.end_koords[1]
+
+            xvals = [x1, x2]
+            yvals = [y1,y2]
+            for l in range(len(axes_list)):
+                ax = axes_list[l]
+                ax.plot(xvals, yvals)
+            ax = axes_list.pop(0)
+
+            if intrack.track_out == out and count > 1:
+                out = intrack.track_in
+            else:
+                out = intrack.track_out
+
+            x3 = out.start_koords[0]
+            x4 = out.end_koords[0]
+            y3 = out.start_koords[1]
+            y4 = out.end_koords[1]
+
+            xvals1 = [x3, x4]
+            yvals1 = [y3, y4]
+
+            for l in range(len(axes_list)):
+                ax = axes_list[l]
+                ax.plot(xvals1, yvals1)
+            ax = axes_list.pop(0)
+
+            if intrack == out.track_out:
+                intrack = out.track_in
+            else:
+                intrack = out.track_out
+
+            if intrack.start_koords == starting or intrack.end_koords == starting:
+                break
+            elif out.start_koords == starting or out.end_koords == starting:
+                break
+            else:
+                print "loop number %d" %(count)
+
+
+        """
+        for j in range(int(self.ntot[tempvar] - jstart-1), -1*step, -1*step):
+            if loop2%2 == 0:
+                #i = self.num_azim2 - i - 1
+                i = tempvar
+            else:
+                #i = tempvar
+                i = self.num_azim2 - i - 1
+
+            x1 = (self.startpoint[i][j][0])
+            x2 = (self.endpoint[i][j][0])
+            y1 = self.startpoint[i][j][1]
+            y2 = self.endpoint[i][j][1]
+            xvals = [x1, x2]
+            yvals = [y1,y2]
+
+            plt.plot(xvals, yvals)
+            loop2 += 1
+        """
+
+        plt.show()
+
+    def plotFluxPasses(self):
+        fig1 = plt.figure()
+        plt.axis([0, self.width, 0, self.height])
 
         tempvar = 1
         i = tempvar
@@ -550,20 +627,13 @@ class InitializeTracks(object):
                 i = tempvar
             else:
                 i = self.num_azim2 - i - 1
-
-
             x1 = (self.startpoint[i][j][0])
-
             x2 = (self.endpoint[i][j][0])
-
             y1 = self.startpoint[i][j][1]
-
             y2 = self.endpoint[i][j][1]
 
             xvals = [x1, x2]
-
             yvals = [y1,y2]
-
 
             plt.plot(xvals, yvals)
             loop1 += 1
