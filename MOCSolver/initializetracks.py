@@ -26,13 +26,11 @@ class InitializeTracks(object):
         self.startpoint = [[] for _ in range(self.num_azim2)]
         self.endpoint = [[] for _ in range(self.num_azim2)]
 
-        # self.segstart = np.empty((num_azim * 100), dtype = object)
-        # self.segend = np.empty((num_azim * 100), dtype = object)
-        #self.seglength = np.empty((num_azim * 100), dtype = object)
+
         self.segangle = np.empty((num_azim * 100), dtype = object)
         self.segvolume = np.empty((num_azim * 100), dtype = object)
         self.segarea = np.empty((num_azim * 100), dtype = object)
-        #self.segmidpt = np.empty((num_azim * 100), dtype = object)
+
         self.segsource = np.empty((num_azim * 100), dtype = object)
 
         self.tracklengths = np.empty((num_azim, 100), dtype = object)
@@ -58,7 +56,7 @@ class InitializeTracks(object):
                 return poss[k]
 
     def makeTracks(self):
-        self.tracks = [[] for _ in range(self.num_azim2)]
+        self.tracks = [[] for _ in range(self.num_azim2)] #self.tracks[i][j] to get a given track
         print "Getting ray entrance coordinates...\n"
         print "Getting ray exit coordinates...\n"
         for i in range(self.num_azim2):
@@ -92,19 +90,23 @@ class InitializeTracks(object):
         ax1.add_patch(c)
 
         for i in range(self.num_azim2):
-        #for i in [3, 7]:
+        #for i in [0, 4]:
 
             counter = int(self.ntot[i])
 
             for j in range(counter):
                 try:
-                    x1 = (self.startpoint[i][j][0])
-                    x2 = (self.endpoint[i][j][0])
+                    #x1 = (self.startpoint[i][j][0])
+                    x1 = self.tracks[i][j].start_koords[0]
+                    x2 = self.tracks[i][j].end_koords[0]
+                    #x2 = (self.endpoint[i][j][0])
                     if x1 == x2:
                         print "Error! X values are equal for i = %d, j = %d" %(i,j)
                         print "x1 = %f \t x2 = %f" %(x1, x2)
-                    y1 = self.startpoint[i][j][1]
-                    y2 = self.endpoint[i][j][1]
+                    y1 = self.tracks[i][j].start_koords[1]
+                    #y1 = self.startpoint[i][j][1]
+                    y2 = self.tracks[i][j].end_koords[1]
+                    #y2 = self.endpoint[i][j][1]
                     if y1 == y2:
                         print "Error! y values are equal for i= %d, j = %f" %(i,j)
                         print "y1 = %f \t y2 = %f" %(y1, y2)
@@ -298,7 +300,6 @@ class InitializeTracks(object):
                     self.tracks[i][j].segments = [seg1]
                     self.num_segments += 1
 
-
     def lengthTwoPoints(self, x1, x2, y1, y2):
         """finds distance between 2 points, returns the length"""
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
@@ -317,6 +318,87 @@ class InitializeTracks(object):
         self.segsource[k] = q     #1 for fuel region; 0 for moderator
         newSeg = SingleSegment(start, end, q, self.lengthTwoPoints(x1, x2, y1, y2))
         return newSeg
+
+    def reflectRays(self):
+        """
+        (inspired by Paul Romano's MOC solver)
+        """
+        print "Linking tracks..."
+        for i in range(self.num_azim2/2):
+            reflected_track = self.tracks[-(i+1)]
+            nx = self.nx[i]
+            ny = self.ny[i]
+
+            for j, track in enumerate(self.tracks[i]):
+                if nx <= ny:
+                    if j < nx:
+                        #rays beginning on bottom, ending on right boundary
+                        k = 2*nx-j-1
+                        track.track_in = reflected_track[j]
+                        reflected_track[j].track_in = track
+                        track.refl_in = 0
+                        reflected_track[j].refl_in = 0
+                        track.track_out = reflected_track[k]
+                        reflected_track[k].track_in = track
+                        track.refl_out = 0
+                        reflected_track[k].refl_in = 1
+                    elif j < ny: #left to right boundary
+                        k = j-nx
+                        m = j+nx
+                        track.track_in = reflected_track[k]
+                        reflected_track[k].track_out = track
+                        track.refl_in = 1
+                        reflected_track[k].refl_out = 0
+
+                        track.track_out = reflected_track[m]
+                        reflected_track[m].track_in = track
+                        track.refl_out = 0
+                        reflected_track[m].refl_in = 1
+                    else: #left to top boundary
+                        k = j-nx
+                        m = -(nx-(self.ntot[i] - j)+1)
+                        track.track_in = reflected_track[k]
+                        reflected_track[k].track_out = track
+                        track.refl_in = 1
+                        reflected_track[k].refl_out = 0
+                        track.track_out = reflected_track[m]
+                        reflected_track[m].track_out = track
+                        track.refl_out = 1
+                        reflected_track[m].refl_out = 1
+                else:
+                    if j < (nx-ny): #bottom to right
+                        k = self.ntot[i] - (nx-ny)+j
+                        track.track_in = reflected_track[j]
+                        reflected_track[j].track_in = track
+                        track.refl_in = 0
+                        reflected_track[j].refl_in = 0
+                        track.track_out = reflected_track[k]
+                        reflected_track[k].track_out = track
+                        track.refl_out = 1
+                        reflected_track[k].refl_out = 1
+
+                    elif j<nx: #left to right
+                        k = nx + (nx-j)-1
+                        track.track_in = reflected_track[j]
+                        reflected_track[j].track_in = track
+                        track.refl_in = 0
+                        reflected_track[j].refl_in = 0
+                        track.track_out = reflected_track[k]
+                        reflected_track[k].track_in = track
+                        track.refl_out = 0
+                        reflected_track[k].refl_in = 1
+                    else: #left to top
+                        k = j-nx
+                        m = ny + (self.ntot[i]-j) -1
+                        track.track_in = reflected_track[k]
+                        reflected_track[k].track_out = track
+                        track.refl_in = 1
+                        reflected_track[k].refl_out = 0
+                        track.track_out = reflected_track[m]
+                        reflected_track[m].track_out = track
+                        track.refl_out = 1
+                        reflected_track[m].refl_out = 1
+
 
     def plotSegments(self):
         print "plotSegments needs to be updated to new indexing!"

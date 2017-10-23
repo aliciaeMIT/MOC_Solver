@@ -91,6 +91,7 @@ tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
 tracks.plotTracks()
+tracks.reflectRays()
 """
 
 #tracks.plotFluxPasses()
