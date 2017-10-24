@@ -401,7 +401,6 @@ class InitializeTracks(object):
                         track.refl_out = 1
                         reflected_track[m].refl_out = 1
 
-
     def plotSegments(self):
         print "plotSegments needs to be updated to new indexing!"
         pass
@@ -529,15 +528,14 @@ class InitializeTracks(object):
         return boundary_id
 
     def plotTrackLinking(self):
-        #fig1 = plt.figure()
-        nrows = 2
+        nrows = 10
         ncols = 5
-        fig, axes = plt.subplots(nrows, ncols, figsize = (16,6), sharex=True, sharey=True)
+        fig, axes = plt.subplots(nrows, ncols, figsize = (ncols*2,nrows*2), sharex=True, sharey=True)
         axes_list = [item for sublist in axes for item in sublist]
 
         plt.axis([0, self.width, 0, self.height])
 
-        i = 0
+        i = 1
         j=0
         starting = self.tracks[i][j].start_koords
         intrack = self.tracks[i][j]
@@ -587,77 +585,9 @@ class InitializeTracks(object):
                 break
             else:
                 print "loop number %d" %(count)
-
-
-        """
-        for j in range(int(self.ntot[tempvar] - jstart-1), -1*step, -1*step):
-            if loop2%2 == 0:
-                #i = self.num_azim2 - i - 1
-                i = tempvar
-            else:
-                #i = tempvar
-                i = self.num_azim2 - i - 1
-
-            x1 = (self.startpoint[i][j][0])
-            x2 = (self.endpoint[i][j][0])
-            y1 = self.startpoint[i][j][1]
-            y2 = self.endpoint[i][j][1]
-            xvals = [x1, x2]
-            yvals = [y1,y2]
-
-            plt.plot(xvals, yvals)
-            loop2 += 1
-        """
-
-        plt.show()
-
-    def plotFluxPasses(self):
-        fig1 = plt.figure()
-        plt.axis([0, self.width, 0, self.height])
-
-        tempvar = 1
-        i = tempvar
-        jmax = int(self.ntot[i])
-        step = int(self.nx[i])
-        loop1 =0
-        jstart = 0
-        for j in range(jstart, jmax, step):
-
-            if loop1% 2 == 0:
-                i = tempvar
-            else:
-                i = self.num_azim2 - i - 1
-            x1 = (self.startpoint[i][j][0])
-            x2 = (self.endpoint[i][j][0])
-            y1 = self.startpoint[i][j][1]
-            y2 = self.endpoint[i][j][1]
-
-            xvals = [x1, x2]
-            yvals = [y1,y2]
-
-            plt.plot(xvals, yvals)
-            loop1 += 1
-
-        loop2 = loop1
-        for j in range(int(self.ntot[tempvar] - jstart-1), -1*step, -1*step):
-            if loop2%2 == 0:
-                #i = self.num_azim2 - i - 1
-                i = tempvar
-            else:
-                #i = tempvar
-                i = self.num_azim2 - i - 1
-
-            x1 = (self.startpoint[i][j][0])
-            x2 = (self.endpoint[i][j][0])
-            y1 = self.startpoint[i][j][1]
-            y2 = self.endpoint[i][j][1]                             
-            xvals = [x1, x2]
-            yvals = [y1,y2]
-
-            plt.plot(xvals, yvals)
-            loop2 += 1
-
-
+        for ax in axes_list:
+            fig.delaxes(ax)
+        plt.draw()
         plt.show()
 
     def plotScalarFlux(self, scalarflux):
