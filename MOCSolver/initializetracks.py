@@ -27,7 +27,7 @@ class InitializeTracks(object):
         self.startpoint = [[] for _ in range(self.num_azim2)]
         self.endpoint = [[] for _ in range(self.num_azim2)]
 
-        self.boundids = np.empty((num_azim, 100), dtype = object)
+        #self.boundids = np.empty((num_azim, 100), dtype = object)
 
 
     def getEnd(self, i, j):
@@ -480,11 +480,11 @@ class InitializeTracks(object):
                 for s in track.segments:  # loop over all segments
                     if s.region == 0:
                         s.length *= corr_mod
-                        mod.segments.append(s)
+                        #mod.segments.append(s)
 
                     elif s.region == 1:
                         s.length *= corr_fuel
-                        fuel.segments.append(s)
+                        #fuel.segments.append(s)
 
     def findBoundaryID(self, koords):
         #finds which boundary a start/endpoint lies on. takes in a tuple of koordinates
@@ -584,7 +584,8 @@ class InitializeTracks(object):
         plt.show()
 
     def plotScalarFlux(self, scalarflux):
-
+        pass
+        """
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
@@ -613,6 +614,7 @@ class InitializeTracks(object):
         plt.clf()
         plt.imshow(heatmap)
         plt.show()
+        """
 
 class SingleTrack(object):
     def __init__(self, start_koords, end_koords, phi):
@@ -626,6 +628,8 @@ class SingleTrack(object):
         self.track_in = None
         self.track_out = None
         self.segments = []
+        self.flux_in = np.zeros((2,3))
+        #self.flux_out = np.zer
 
 class SingleSegment(object):
     def __init__(self, start_koords, end_koords, region, length):

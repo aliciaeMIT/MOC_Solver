@@ -1,5 +1,5 @@
 from initializetracks import InitializeTracks
-from flux import FlatSourceRegion, MOCFlux, ConvergenceTest
+from flux import FlatSourceRegion, MethodOfCharacteristics, ConvergenceTest
 import math
 
 num_azim = 16 #number of azimuthal angles desired
@@ -50,15 +50,16 @@ if test_dancoff:
 #refined.plotFSRs()
 
 #tracks = InitializeTracks(num_azim, t, w, h, n_p, r, fsr object, num_rings, refined.ring_radius)
-fuel = FlatSourceRegion(q_fuel)
-mod = FlatSourceRegion(q_mod)
+fuel = FlatSourceRegion(q_fuel, sigma_t_fuel)
+mod = FlatSourceRegion(q_mod, sigma_t_mod)
 fsr = [fuel, mod]
 
 
-tracks = InitializeTracks(num_azim, t, w, h, n_p, r, fsr)
-tracks.getTracks()
-tracks.makeTracks()
+setup = InitializeTracks(num_azim, t, w, h, n_p, r, fsr)
+setup.getTracks()
+setup.makeTracks()
 
+"""
 for i in range(tracks.num_azim2):
     for j in range(int(tracks.nx[i] + tracks.ny[i])):
         start = tracks.findBoundaryID(tracks.startpoint[i][j])
@@ -90,26 +91,28 @@ for i in range(tracks.num_azim2):
                     print "coordinates match! startval[%d][%d] == endval[%d][%d]" %(i,j,g,h)
                 #else:
                     #print "coords do not match"
+"""
 
-tracks.getAngularQuadrature()
-tracks.getPolarWeight()
-tracks.findIntersection()
-tracks.reflectRays()
+setup.getAngularQuadrature()
+setup.getPolarWeight()
+setup.findIntersection()
+setup.reflectRays()
 
 #tracks.plotTracks()
 #tracks.plotTrackLinking()
 #tracks.plotSegments()
 
 
-tracks.getFSRVolumes(fuel, mod)
+setup.getFSRVolumes(fuel, mod)
+
+
+
+flux = MethodOfCharacteristics(sigma_t_fuel, sigma_t_mod, fsr, setup)
+
+flux.totalAngularFlux(psi_in)
+#psi_in1 = psi_in
 
 """
-
-source.computeSource(tracks.num_segments, sigma_t_mod, sigma_t_fuel)
-
-flux = MOCFlux(tracks.num_segments, sigma_t_fuel, sigma_t_mod, tracks.seglength, tracks.tracklengths, tracks.n_p, tracks.num_azim2, tracks.ntot, source.qseg, tracks.segsource)
-psi_in1 = psi_in
-
 tol = 1e-10
 converged = False
 psi_old = flux.psi_scalar
