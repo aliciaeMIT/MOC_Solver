@@ -1,12 +1,9 @@
 from initializetracks import InitializeTracks
-#from geometry import Geometry
 from flux import FlatSourceApproximation, MOCFlux, ConvergenceTest
-#from flux import MOCFlux
-#from flux import ConvergenceTest
 import math
 
 num_azim = 16 #number of azimuthal angles desired
-t = 0.2#track spacing desired, cm
+t = 0.1#track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -55,10 +52,8 @@ if test_dancoff:
 #tracks = InitializeTracks(num_azim, t, w, h, n_p, r, num_rings, refined.ring_radius)
 
 tracks = InitializeTracks(num_azim, t, w, h, n_p, r)
-
 tracks.getTracks()
-tracks.getStart()
-tracks.getEnd()
+tracks.makeTracks()
 
 for i in range(tracks.num_azim2):
     for j in range(int(tracks.nx[i] + tracks.ny[i])):
@@ -95,11 +90,17 @@ for i in range(tracks.num_azim2):
 tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
+#tracks.plotTracks()
+tracks.reflectRays()
+tracks.plotTrackLinking()
+"""
+
 #tracks.plotFluxPasses()
-tracks.plotTracks()
+
 #tracks.plotSegments()
-tracks.getFSRVolumes()
-tracks.getFSRAreas()
+"""
+#tracks.getFSRVolumes()
+#tracks.getFSRAreas()
 
 """
 source = FlatSourceApproximation(q_fuel, q_mod, tracks.segsource)
