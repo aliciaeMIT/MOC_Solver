@@ -5,7 +5,7 @@ class MOCFlux(object):
     """
     class for calculating angular and scalar flux
     """
-    def __init__(self, num_segments, sigma_t_fuel, sigma_t_mod, segment_lengths, track_lengths, n_p, num_azim, ntot, q_seg, seg_source):
+    def __init__(self, ):
         self.num_segments = num_segments
         self.psi_angular = np.zeros(2 * num_segments)
         self.psi_scalar = np.zeros(num_segments)
@@ -35,7 +35,7 @@ class MOCFlux(object):
 
 
     def segmentXS(self, seg_source):
-        sigma_t = 1
+
         if seg_source == 0:
             sigma_t = self.sigma_t_mod
         elif seg_source == 1:
@@ -183,30 +183,17 @@ class ConvergenceTest(object):
         return qfuel, qmod, psi_in, sigma_fuel
 
 
-class FlatSourceApproximation(object):
-    def __init__(self, q_fuel, q_mod, qweight):
+class FlatSourceRegion(object):
+    def __init__(self, source):
 
         """
         This class generates the source for each flat source (and updates it, if not constant isotropic)
         """
+        self.volume = 0
+        self.flux = 0
+        self.source = source
+        self.segments = []
 
-        self.q_fuel = q_fuel
-        self.q_mod = q_mod
-        self.qweight = qweight
-        self.qseg = np.zeros(1000)
-        self.sigma_FSR = np.zeros(1000)
-
-    def computeSource(self, num_seg, sigma_a, sigma_r):
-        print "Determining source values for segment regions..."
-        for k in range(num_seg):
-            # self.qseg[k] = self.q_fuel * self.qweight[k]
-            if self.qweight[k] == 0:  # moderator
-                self.sigma_FSR[k] = sigma_a
-                self.qseg[k] = self.q_mod
-            elif self.qweight[k] == 1:
-                self.sigma_FSR[k] = sigma_r
-                self.qseg[k] = self.q_fuel
-
-    def checkVals(self):
-        print self.qweight
+    def addRegion(self):
+        pass
 

@@ -1,9 +1,9 @@
 from initializetracks import InitializeTracks
-from flux import FlatSourceApproximation, MOCFlux, ConvergenceTest
+from flux import FlatSourceRegion, MOCFlux, ConvergenceTest
 import math
 
 num_azim = 16 #number of azimuthal angles desired
-t = 0.1#track spacing desired, cm
+t = 0.05#track spacing desired, cm
 h = 1.26 #height of pincell
 w = 1.26 #width of pincell
 r = 0.4 #fuel pin radius
@@ -44,14 +44,18 @@ if test_dancoff:
     #psi_in = 0
     #sigma_t_fuel = 1e5
 
-
 #refined = Geometry(w, h, r, num_rings)
 #refined.createRings()
 #refined.divideSectors()
 #refined.plotFSRs()
-#tracks = InitializeTracks(num_azim, t, w, h, n_p, r, num_rings, refined.ring_radius)
 
-tracks = InitializeTracks(num_azim, t, w, h, n_p, r)
+#tracks = InitializeTracks(num_azim, t, w, h, n_p, r, fsr object, num_rings, refined.ring_radius)
+fuel = FlatSourceRegion(q_fuel)
+mod = FlatSourceRegion(q_mod)
+fsr = [fuel, mod]
+
+
+tracks = InitializeTracks(num_azim, t, w, h, n_p, r, fsr)
 tracks.getTracks()
 tracks.makeTracks()
 
@@ -90,20 +94,16 @@ for i in range(tracks.num_azim2):
 tracks.getAngularQuadrature()
 tracks.getPolarWeight()
 tracks.findIntersection()
-#tracks.plotTracks()
 tracks.reflectRays()
-tracks.plotTrackLinking()
-"""
 
-#tracks.plotFluxPasses()
-
+#tracks.plotTracks()
+#tracks.plotTrackLinking()
 #tracks.plotSegments()
-"""
-#tracks.getFSRVolumes()
-#tracks.getFSRAreas()
+
+
+tracks.getFSRVolumes(fuel, mod)
 
 """
-source = FlatSourceApproximation(q_fuel, q_mod, tracks.segsource)
 
 source.computeSource(tracks.num_segments, sigma_t_mod, sigma_t_fuel)
 
