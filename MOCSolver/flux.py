@@ -5,13 +5,14 @@ class MethodOfCharacteristics(object):
     """
     class for calculating angular and scalar flux
     """
-    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup):
+    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup, check):
 
         self.sigma_t_fuel = sigma_t_fuel
         self.sigma_t_mod = sigma_t_mod
         self.regions = regions
         self.setup = setup
         self.tracks = setup.tracks
+        self.check = check
         #get n_p by self.setup.n_p, numazim2 by self.setup.num_azim2
         #get segments in a track by self.tracks.segments
         #get segments in a region by self.regions.segments
@@ -39,9 +40,9 @@ class MethodOfCharacteristics(object):
 
     def angularFlux(self, flux_in, s, p): #s = segment
         region = s.region
-        if region == 0: #fuel
+        if region == 0: #moderator
             q_seg = self.regions[0].source
-        elif region == 1: #moderator
+        elif region == 1: #fuel
             q_seg = self.regions[1].source
         #q_seg = region.source
         length = s.length
@@ -56,28 +57,30 @@ class MethodOfCharacteristics(object):
             sigma_t = self.sigma_t_fuel
         return sigma_t
 
-    def totalAngularFlux(self, psi_in):
+    def solveFlux(self, num_iter_tot):
         stp = self.setup
-        flux_in = psi_in
         num_iter = 0
+        delta_flux = 0
         fuel = self.regions[1]
         mod = self.regions[0]
+        converged = False
 
-        while num_iter < 10:
+        while not converged:                              #num_iter < num_iter_tot:
             for p in range(stp.n_p):                                       #loop over polar angles
                 for i in range(stp.num_azim2):                             #loop over azimuthal angles
-                    for track in self.tracks[i]:
+                    for track in self.tracks[i]:                           #loop over all tracks
 
                         track.quadwt = stp.omega_m[i] * stp.t_eff[i] * stp.omega_p[p] * stp.sintheta_p[p]
                         flux = track.flux_in[0, p]
 
-                        if num_iter == 0:
+                        if num_iter == 0:                                  #initial flux on boundaries is zero
                             flux = 0
 
-                        for s in track.segments:  #loop over segments
+                        for s in track.segments:                           #loop over segments
                             region = s.region
                             delta_flux = self.angularFlux(flux, s, p)
                             flux -= delta_flux
+                            print "region %g \t flux in %.1e \t\t delta flux %.1e" % (region, flux, delta_flux)
                             if region == 1:
                                 fuel.flux += delta_flux * track.quadwt
                             elif region == 0:
@@ -91,6 +94,7 @@ class MethodOfCharacteristics(object):
                         flux = track.flux_in[1,p]
                         if num_iter == 0:
                             flux = 0
+
                         for s in track.segments[::-1]:
                             region = s.region
                             delta_flux = self.angularFlux(flux, s, p)
@@ -103,48 +107,22 @@ class MethodOfCharacteristics(object):
                                 print "Error in scalar flux calculation (reverse)"
                         track.track_in.flux_in[track.refl_in, p] = flux
 
-
-            print "flux in %f \t delta flux %f \n" %(flux, delta_flux)
-
-                        #flux_in = flux_in - delta_flux
+                       # print "flux in %g \t delta flux %g" % (flux, delta_flux)
+            if num_iter == 0:
+                self.dancoff_flux0 = fuel.flux
             num_iter += 1
-        fuel.flux = fuel.flux / fuel.volume
-        print fuel.flux
-        mod.flux= mod.flux / mod.volume
-        print mod.flux
+
+        fuel.flux /= fuel.area
+        fuel.flux += fuel.source
+        fuel.flux *= (4*math.pi)/self.segmentXS(1)
 
 
-    def scalarFlux(self, sigma, area, omega_m, omega_p, omega_k, sinthetap, segangle):
-        pass
-        """
-        for k in range(self.num_segments):
-            sum1 = 0
-            for p in range(self.n_p):
-                index = segangle[k][0]
-                sum1 += omega_m[index] * omega_p[p] * omega_k[index] * sinthetap[p] * self.delta_flux[k]
-                #for debugging:
-                sum2 = sum1
+        mod.flux /= mod.area
+        mod.flux += mod.source
+        mod.flux *= (4*math.pi)/self.segmentXS(0)
 
-
-            self.psi_scalar[k] = ((4 * math.pi) / (sigma[k]))*(self.q_seg[k] + (1 / area[k]) * (sum1))
-            #below is for debugging
-            scalar1 = self.psi_scalar[k]
-            sig1 = sigma[k]
-            areaa = area[k]
-
-
-        max1 = max(self.psi_scalar)
-        print "max scalar flux:"
-        print max1
-        print "\n"
-
-        if max1 == 'nan' or round(max1,5) == 0.00000:
-            pass
-        else:
-            for k in range(self.num_segments):
-                self.psi_scalar[k] = self.psi_scalar[k] / max1
-                print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
-        """
+        print "\nSCALAR FLUX\n-----------" \
+              "\nFuel = \t\t\t%g \nModerator = \t%g" %(fuel.flux, mod.flux)
 
 
 class ConvergenceTest(object):
@@ -153,6 +131,7 @@ class ConvergenceTest(object):
         class for testing convergence using the L2 engineering norm
         n is the iteration index, i is the vector content index, I is total number of entries in vector.
         """
+
 
     def isConverged(self, vec_n, vec_n1, epsilon):
         sum1 = 0
@@ -203,11 +182,11 @@ class FlatSourceRegion(object):
         This class generates the source for each flat source (and updates it, if not constant isotropic)
         """
         self.volume = 0
+        self.area = 0
         self.flux = 0
         self.source = source
         self.sigma = xs
         #self.segments = []
 
-    def addRegion(self):
+    def dancoffFlux(self, dflux):
         pass
-
