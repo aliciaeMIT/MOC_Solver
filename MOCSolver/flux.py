@@ -57,18 +57,23 @@ class MethodOfCharacteristics(object):
             sigma_t = self.sigma_t_fuel
         return sigma_t
 
-    def solveFlux(self, num_iter_tot):
+    def solveFlux(self, num_iter_tot, tol):
         stp = self.setup
         num_iter = 0
         delta_flux = 0
         fuel = self.regions[1]
         mod = self.regions[0]
         converged = False
+        flux_old = []
+        flux_curr = []
 
-        while not converged:                              #num_iter < num_iter_tot:
+
+        while not converged:   #num_iter < num_iter_tot:
             for p in range(stp.n_p):                                       #loop over polar angles
                 for i in range(stp.num_azim2):                             #loop over azimuthal angles
                     for track in self.tracks[i]:                           #loop over all tracks
+                        fuel_old = fuel.flux
+                        mod_old = mod.flux
 
                         track.quadwt = stp.omega_m[i] * stp.t_eff[i] * stp.omega_p[p] * stp.sintheta_p[p]
                         flux = track.flux_in[0, p]
@@ -77,9 +82,12 @@ class MethodOfCharacteristics(object):
                             flux = 0
 
                         for s in track.segments:                           #loop over segments
+                            flux_old.append(flux)
+
                             region = s.region
                             delta_flux = self.angularFlux(flux, s, p)
                             flux -= delta_flux
+                            flux_curr.append(flux)
                             print "region %g \t flux in %.1e \t\t delta flux %.1e" % (region, flux, delta_flux)
                             if region == 1:
                                 fuel.flux += delta_flux * track.quadwt
@@ -96,9 +104,14 @@ class MethodOfCharacteristics(object):
                             flux = 0
 
                         for s in track.segments[::-1]:
+                            flux_old.append(flux)
+
                             region = s.region
                             delta_flux = self.angularFlux(flux, s, p)
                             flux -= delta_flux
+
+                            flux_curr.append(flux)
+
                             if region == 1:
                                 fuel.flux += delta_flux * track.quadwt
                             elif region == 0:
@@ -108,9 +121,16 @@ class MethodOfCharacteristics(object):
                         track.track_in.flux_in[track.refl_in, p] = flux
 
                        # print "flux in %g \t delta flux %g" % (flux, delta_flux)
+
             if num_iter == 0:
                 self.dancoff_flux0 = fuel.flux
-            num_iter += 1
+                num_iter+=1
+            elif num_iter >= num_iter_tot-1:
+                converged = self.check.isConverged([fuel.flux, mod.flux], [fuel_old, mod_old], tol)
+            else:
+                num_iter += 1
+
+
 
         fuel.flux /= fuel.area
         fuel.flux += fuel.source
@@ -122,7 +142,8 @@ class MethodOfCharacteristics(object):
         mod.flux *= (4*math.pi)/self.segmentXS(0)
 
         print "\nSCALAR FLUX\n-----------" \
-              "\nFuel = \t\t\t%g \nModerator = \t%g" %(fuel.flux, mod.flux)
+              "\nFuel = \t\t\t%g \nModerator = \t%g" \
+              "\nNumber of iterations to convergence: %d" %(fuel.flux, mod.flux, num_iter)
 
 
 class ConvergenceTest(object):
@@ -138,9 +159,9 @@ class ConvergenceTest(object):
         print "Convergence error:"
         for i in range(len(vec_n)):
             if round(vec_n[i],7) == 0:
-                vec_n[i] = 0.000001
+                vec_n[i] = 0.00000001
             error1 = ((vec_n[i] - vec_n1[i])/vec_n[i]) ** 2
-            print error1
+            #print error1
             sum1 += error1
         I = len(vec_n)
         l2 = math.sqrt((1 / I) * sum1)
