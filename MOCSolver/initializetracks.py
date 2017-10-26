@@ -430,7 +430,7 @@ class InitializeTracks(object):
                 for track in self.tracks[i]: #loop over all tracks
                     for s in track.segments: #loop over all segments
                         s.volume = self.omega_m[i] * self.t_eff[i] * s.length *  self.sintheta_p[p]
-                        quadweight =  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]#* self.sintheta_p[p]
+                        quadweight =  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] * self.sintheta_p[p]
                         s.area = quadweight * s.length
                         area += s.area
                         if s.region == 0:
@@ -648,3 +648,4 @@ class SingleSegment(object):
         self.end_coords = end_coords
         self.region = region
         self.length = length
+        self.exponential = 0
