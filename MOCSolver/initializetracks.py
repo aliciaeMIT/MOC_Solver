@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 class InitializeTracks(object):
-    def __init__(self, num_azim, spacing, width, height, num_polar, radius, num_rings = 0, ring_radii = None):
+    def __init__(self, num_azim, spacing, width, height, num_polar, radius, fsr, num_rings = 0, ring_radii = None):
         """
         This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
         """
@@ -14,6 +14,7 @@ class InitializeTracks(object):
         self.height = height
         self.n_p = num_polar
         self.radius = radius
+        self.fsr = fsr
         self.phi = []
         self.nx = []
         self.ny = []
@@ -26,16 +27,7 @@ class InitializeTracks(object):
         self.startpoint = [[] for _ in range(self.num_azim2)]
         self.endpoint = [[] for _ in range(self.num_azim2)]
 
-
-        self.segangle = np.empty((num_azim * 100), dtype = object)
-        self.segvolume = np.empty((num_azim * 100), dtype = object)
-        self.segarea = np.empty((num_azim * 100), dtype = object)
-
-        self.segsource = np.empty((num_azim * 100), dtype = object)
-
-        self.tracklengths = np.empty((num_azim, 100), dtype = object)
-
-        self.boundids = np.empty((num_azim, 100), dtype = object)
+        self.boundids = [[] for _ in range(self.num_azim2)]
 
 
     def getEnd(self, i, j):
@@ -90,26 +82,26 @@ class InitializeTracks(object):
         ax1.add_patch(c)
 
         for i in range(self.num_azim2):
-        #for i in [0, 4]:
+        #for i in [0, 4]: #for debugging, to plot complementary angles (tracks should be cyclic)
 
             counter = int(self.ntot[i])
 
             for j in range(counter):
                 try:
-                    #x1 = (self.startpoint[i][j][0])
-                    x1 = self.tracks[i][j].start_koords[0]
-                    x2 = self.tracks[i][j].end_koords[0]
-                    #x2 = (self.endpoint[i][j][0])
+                    x1 = self.tracks[i][j].start_coords[0]
+                    x2 = self.tracks[i][j].end_coords[0]
+
                     if x1 == x2:
                         print "Error! X values are equal for i = %d, j = %d" %(i,j)
                         print "x1 = %f \t x2 = %f" %(x1, x2)
-                    y1 = self.tracks[i][j].start_koords[1]
-                    #y1 = self.startpoint[i][j][1]
-                    y2 = self.tracks[i][j].end_koords[1]
-                    #y2 = self.endpoint[i][j][1]
+
+                    y1 = self.tracks[i][j].start_coords[1]
+                    y2 = self.tracks[i][j].end_coords[1]
+
                     if y1 == y2:
                         print "Error! y values are equal for i= %d, j = %f" %(i,j)
                         print "y1 = %f \t y2 = %f" %(y1, y2)
+
                     xvals = [x1, x2]
                     yvals = [y1,y2]
                 except(TypeError):
@@ -128,7 +120,7 @@ class InitializeTracks(object):
         print "plotting tracks..."
         plt.show()
 
-    def getTracks(self):
+    def getTrackParams(self):
         print "\n------------------\nInput parameters:\n------------------"
         print "Num of azimuthal angles desired = %d" %(self.num_azim2 * 2)
         print "Track spacing = %.4f cm" %(self.spacing)
@@ -180,7 +172,7 @@ class InitializeTracks(object):
             print "\n"
 
     def getAngularQuadrature(self):
-        """computation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
+        """Calculation of azimuthal angle quadrature set, based on fraction of angular space of each angle.
         """
         omega_m_tot = 0
         self.omega_m = []
@@ -239,9 +231,8 @@ class InitializeTracks(object):
                 cy0 = self.height/2
                 x0, y0 = self.startpoint[i][j]
                 x1, y1 = self.endpoint[i][j]
-
+                track = self.tracks[i][j] #reference to object that stores this track
                 raylen = self.lengthTwoPoints(x0, x1, y0, y1)
-                self.tracklengths[i][j] = raylen
 
                 xproj = (x1 - x0) / raylen
                 yproj = (y1 - y0) / raylen
@@ -263,8 +254,8 @@ class InitializeTracks(object):
                     self.intersect1[i].append((fx, fy))
 
                     #store first segment: from startpoint to intersect1
-                    seg1 = self.segmentStore(x0,fx, y0, fy, self.num_segments, i, j, 0)
-                    self.num_segments += 1 #increment to store next segment
+                    s = self.segmentStore(x0,fx, y0, fy, self.num_segments, i, j, 0)
+                    track.segments.append(s)
 
                     #second intersection point
                     gx = (close + dclose) * xproj + x0
@@ -272,14 +263,12 @@ class InitializeTracks(object):
                     self.intersect2[i].append((gx, gy))
 
                     #store second segment: from intersect1 to intersect2
-                    seg2 = self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
-                    self.num_segments += 1 #increment to store next segment
+                    s = self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
+                    track.segments.append(s)
 
                     #store third segment: from intersect2 to endpoint
-                    seg3 = self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
-                    self.num_segments += 1
-
-                    self.tracks[i][j].segments = [seg1, seg2, seg3]
+                    s = self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
+                    track.segments.append(s)
 
                 elif dist_center == self.radius:
                     print "line is tangent\n"
@@ -288,34 +277,24 @@ class InitializeTracks(object):
                     #treat as a miss. store whole track as 1 segment.
                     #later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    seg1 = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
-                    self.tracks[i][j].segments = [seg1]
-                    self.num_segments += 1
+                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    track.segments.append(s)
 
                     #point e is tangent to circle; brushes but does not enter.
                 else:
                     self.intersect1[i].append(None)
                     self.intersect2[i].append(None)
-                    seg1 = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
-                    self.tracks[i][j].segments = [seg1]
-                    self.num_segments += 1
+                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    track.segments.append(s)
 
     def lengthTwoPoints(self, x1, x2, y1, y2):
         """finds distance between 2 points, returns the length"""
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
         return length
 
-    def getMidpoint(self, x1, y1, x2, y2):
-        """honestly can't remember why i wrote this. but it is pretty self-explanatory."""
-        xc = abs((x2 - x1) / 2)
-        yc = abs((y2-y1)/2)
-        return (xc, yc)
-
     def segmentStore(self, x1, x2, y1, y2, k, i, j, q):
         start = (x1, y1)
         end = (x2,y2)
-        self.segangle[k] = (i,j)  #store angle index i so phi, omega_m[i] can be retrieved later
-        self.segsource[k] = q     #1 for fuel region; 0 for moderator
         newSeg = SingleSegment(start, end, q, self.lengthTwoPoints(x1, x2, y1, y2))
         return newSeg
 
@@ -402,105 +381,96 @@ class InitializeTracks(object):
                         reflected_track[m].refl_out = 1
 
     def plotSegments(self):
-        print "plotSegments needs to be updated to new indexing!"
-        pass
-        """ this needs to be fixed with implementation of objects/storage
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
-        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
-        ax1.add_patch(c)
 
-        for k in range(self.num_segments):
-            x1 = (self.segstart[k][0])
-            x2 = (self.segend[k][0])
+        #c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        #ax1.add_patch(c)
 
-            if x1 == x2:
+        for i in range(self.num_azim2):
+            for track in self.tracks[i]:
+                for s in track.segments:
+                    x1, y1 = s.start_coords
+                    x2, y2 = s.end_coords
 
-                print "Error! X values are equal for i = %d, j = %d" %(i,j)
+                    if x1 == x2:
+                        print "Error! X values are equal for i = %d, j = %d" %(i,j)
+                        print "x1 = %f \t x2 = %f" %(x1, x2)
 
-                print "x1 = %f \t x2 = %f" %(x1, x2)
+                    if y1 == y2:
+                        print "Error! y values are equal for i= %d, j = %f" %(i,j)
+                        print "y1 = %f \t y2 = %f" %(y1, y2)
 
-            y1 = self.segstart[k][1]
+                    xvals = [x1, x2]
+                    yvals = [y1,y2]
 
-            y2 = self.segend[k][1]
-
-            if y1 == y2:
-
-                print "Error! y values are equal for i= %d, j = %f" %(i,j)
-
-                print "y1 = %f \t y2 = %f" %(y1, y2)
-
-            xvals = [x1, x2]
-
-            yvals = [y1,y2]
-
-
-            plt.plot(xvals, yvals)
-
-
+                    if s.region == 0:
+                        plt.plot(xvals, yvals, 'k')
+                    elif s.region == 1:
+                        plt.plot(xvals, yvals, 'r')
+                    else:
+                        print "Error: segment region not set"
         print "plotting segments..."
-
         plt.show()
-        """
 
-    def getFSRAreas(self):
-        print "getFSRAreas needs to be updated to new indexing!"
-        pass
-        """
-        area = 0
-        quadweight = 0
-        for k in range(self.num_segments):  #loop over all segments
-            i = self.segangle[k][0]
-            quadweight =  self.omega_m[i]  * self.t_eff[i]
-            area +=  quadweight * self.seglength[k]
-            self.segarea[k] = quadweight * self.seglength[k]
-        """
-
-    def getFSRVolumes(self):
-        print "getFSRAreas needs to be updated to new indexing!"
-
-
+    def getFSRVolumes(self, fuel, mod):
         """
             this is for computing FSR area/volumes and quadrature weights
             to get area only, set p range to 1. should get the area of the pincell out.
             To get total FSR volumes: summing over polar angles and all segments
         """
-
-        """
         print "Calculating FSR volumes..."
         
-        
         area = 0
-        volume = 0
         quadweight = 0
 
-
-
         for p in range(self.n_p):    #loop over polar angles
-            for k in range(self.num_segments):  #loop over all segments
-                i = self.segangle[k][0]
-                self.segvolume[k] = self.omega_m[i] * self.t_eff[i] * self.seglength[k] *  self.sintheta_p[p]        
+            for i in range(self.num_azim2):#loop over all angles
+                for track in self.tracks[i]: #loop over all tracks
+                    for s in track.segments: #loop over all segments
+                        s.volume = self.omega_m[i] * self.t_eff[i] * s.length *  self.sintheta_p[p]
+                        quadweight =  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] * self.sintheta_p[p]
+                        s.area = quadweight * s.length
+                        area += s.area
+                        if s.region == 0:
+                            mod.area += s.area
+                        elif s.region == 1:
+                            fuel.area += s.area
 
-                quadweight +=  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]
-                area +=  self.omega_m[i] * self.t_eff[i] * self.seglength[k]
-                volume += self.segvolume[k]
-        
-        #estimated_volume = (4/3) * math.pi * (self.width / math.sqrt(2)) ** 3
-        #expected_area = self.width * self.height     #area of pincell
-        #print "volume calculated = %f \nvolume expected = %f \n" %(volume, estimated_volume)
-        #print "area calculated = %f \nArea expected = %f \n" %(area, expected_area)
-        """
-        pass
+        est_area = self.width * self.height     #area of pincell
+        est_area_fuel = math.pi * self.radius ** 2
+        est_area_mod = est_area - est_area_fuel
+        tot_area = fuel.area + mod.area
 
-    def findBoundaryID(self, koords):
-        #finds which boundary a start/endpoint lies on. takes in a tuple of koordinates
+        print "fuel area calculated = %f \nfuel area expected = %f \n" %(fuel.area, est_area_fuel)
+        print "mod area calculated = %f \nmod area expected = %f \n" %(mod.area, est_area_mod)
+        print "pincell area calculated = %f \npincell area expected = %f\n" %(tot_area, est_area)
+
+        print "Correcting track lengths...\n"
+
+        corr_fuel = est_area_fuel / fuel.area
+        corr_mod = est_area_mod / mod.area
+        print "fuel track area correction factor: %f \nmod track area correction factor: %f\n" %(corr_fuel, corr_mod)
+
+
+        for i in range(self.num_azim2):  # loop over all angles
+            for track in self.tracks[i]:  # loop over all tracks
+                for s in track.segments:  # loop over all segments
+                    if s.region == 0:
+                        s.length *= corr_mod
+
+                    elif s.region == 1:
+                        s.length *= corr_fuel
+
+    def findBoundaryID(self, coords):
+        #finds which boundary a start/endpoint lies on. takes in a tuple of coordinates
         #only applies for boundary points: where x=0 or x=xmax and y=0 or y=ymax.
         #boundary 1: bottom (y=0)
         #boundary 2: left (x=0)
         #boundary 3: top (y=ymax)
         #boundary 4: right (x=xmax)
-        x, y = koords
+        x, y = coords
         boundary_id = 0 #will remain 0 if not on a boundary.
 
         x = round(x, 3)
@@ -529,25 +499,25 @@ class InitializeTracks(object):
 
     def plotTrackLinking(self):
         nrows = 10
-        ncols = 5
+        ncols = 10
         fig, axes = plt.subplots(nrows, ncols, figsize = (ncols*2,nrows*2), sharex=True, sharey=True)
         axes_list = [item for sublist in axes for item in sublist]
 
         plt.axis([0, self.width, 0, self.height])
 
-        i = 1
+        i = 0
         j=0
-        starting = self.tracks[i][j].start_koords
+        starting = self.tracks[i][j].start_coords
         intrack = self.tracks[i][j]
         out = intrack.track_out
         count = 0
 
         while True:
             count+=1
-            x1 = intrack.start_koords[0]
-            x2 = intrack.end_koords[0]
-            y1 = intrack.start_koords[1]
-            y2 = intrack.end_koords[1]
+            x1 = intrack.start_coords[0]
+            x2 = intrack.end_coords[0]
+            y1 = intrack.start_coords[1]
+            y2 = intrack.end_coords[1]
 
             xvals = [x1, x2]
             yvals = [y1,y2]
@@ -561,10 +531,10 @@ class InitializeTracks(object):
             else:
                 out = intrack.track_out
 
-            x3 = out.start_koords[0]
-            x4 = out.end_koords[0]
-            y3 = out.start_koords[1]
-            y4 = out.end_koords[1]
+            x3 = out.start_coords[0]
+            x4 = out.end_coords[0]
+            y3 = out.start_coords[1]
+            y4 = out.end_coords[1]
 
             xvals1 = [x3, x4]
             yvals1 = [y3, y4]
@@ -579,9 +549,9 @@ class InitializeTracks(object):
             else:
                 intrack = out.track_out
 
-            if intrack.start_koords == starting or intrack.end_koords == starting:
+            if intrack.start_coords == starting or intrack.end_coords == starting:
                 break
-            elif out.start_koords == starting or out.end_koords == starting:
+            elif out.start_coords == starting or out.end_coords == starting:
                 break
             else:
                 print "loop number %d" %(count)
@@ -590,8 +560,42 @@ class InitializeTracks(object):
         plt.draw()
         plt.show()
 
-    def plotScalarFlux(self, scalarflux):
+    def getTrackLinkCoords(self):
+        for i in range(self.num_azim2):
+            for track in self.tracks[i]:
+                start = self.findBoundaryID(track.start_coords)
+                end = self.findBoundaryID(track.end_coords)
+                self.boundids.append((start, end))
 
+        for i in range(self.num_azim2):
+            j=0
+            for track in self.tracks[i]:
+                j+=1
+                startvalx, startvaly = track.start_coords
+                startvalx = round(startvalx, 3)
+                startvaly = round(startvaly, 3)
+                startval = (startvalx, startvaly)
+                for g in range(self.num_azim2):
+                    h=0
+                    for track1 in self.tracks[g]:
+                        h+=1
+                        endvalx, endvaly = track1.end_coords
+                        startx2, starty2 = track1.start_coords
+
+                        endvalx = round(endvalx, 3)
+                        endvaly = round(endvaly, 3)
+                        endval = (endvalx, endvaly)
+
+                        startx2 = round(startx2, 3)
+                        starty2 = round(starty2, 3)
+                        start2 = (startx2, starty2)
+
+                        if startval == endval or startval == start2 and not (track == track1):
+                            print "coordinates match! startval[%d][%d] == endval[%d][%d]" % (i, j, g, h)
+
+    def plotScalarFlux(self, scalarflux):
+        pass
+        """
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
@@ -600,12 +604,12 @@ class InitializeTracks(object):
         xvals = np.zeros(len(scalarflux))
         yvals = np.zeros(len(scalarflux))
         fluxes = np.zeros(len(scalarflux))
-        koords = np.zeros(len(scalarflux))
+        coords = np.zeros(len(scalarflux))
 
         for k in range(self.num_segments):
             x1 = self.segmidpt[k][0]
             y1 = self.segmidpt[k][1]
-            koords[k] = (x1, y1, k)
+            coords[k] = (x1, y1, k)
             xvals[k] = x1
             yvals[k] = y1
             fluxes[k] = scalarflux[k]
@@ -620,24 +624,28 @@ class InitializeTracks(object):
         plt.clf()
         plt.imshow(heatmap)
         plt.show()
+        """
 
 class SingleTrack(object):
-    def __init__(self, start_koords, end_koords, phi):
+    def __init__(self, start_coords, end_coords, phi):
         """
         Class for creating a single track. Stores the incoming, outgoing coords,
         segments, incoming and outgoing track, angle
         """
-        self.start_koords = start_koords
-        self.end_koords = end_koords
+        self.start_coords = start_coords
+        self.end_coords = end_coords
         self.phi = phi
         self.track_in = None
         self.track_out = None
         self.segments = []
+        self.flux_in = np.zeros((2,3))
+        #self.flux_out = np.zer
 
 class SingleSegment(object):
-    def __init__(self, start_koords, end_koords, region, length):
+    def __init__(self, start_coords, end_coords, region, length):
 
-        self.start_koords = start_koords
-        self.end_koords = end_koords
+        self.start_coords = start_coords
+        self.end_coords = end_coords
         self.region = region
         self.length = length
+        self.exponential = 0

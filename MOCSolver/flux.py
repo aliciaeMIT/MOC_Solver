@@ -1,137 +1,158 @@
 import math
 import numpy as np
 
-class MOCFlux(object):
+class MethodOfCharacteristics(object):
     """
     class for calculating angular and scalar flux
     """
-    def __init__(self, num_segments, sigma_t_fuel, sigma_t_mod, segment_lengths, track_lengths, n_p, num_azim, ntot, q_seg, seg_source):
-        self.num_segments = num_segments
-        self.psi_angular = np.zeros(2 * num_segments)
-        self.psi_scalar = np.zeros(num_segments)
+    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup, check):
+
         self.sigma_t_fuel = sigma_t_fuel
         self.sigma_t_mod = sigma_t_mod
-        self.seglength = segment_lengths
-        self.tracklength = track_lengths
-        self.n_p = n_p
-        self.num_azim = num_azim
-        self.ntot = ntot
-        self.q_seg = q_seg
-        self.segsource = seg_source
-        self.delta_flux = np.zeros((num_segments))
-        self.flux_out = 0
+        self.regions = regions
+        self.setup = setup
+        self.tracks = setup.tracks
+        self.check = check
+        self.exponential = []
+        #get n_p by self.setup.n_p, numazim2 by self.setup.num_azim2
+        #get segments in a track by self.tracks.segments
+        #get segments in a region by self.regions.segments
 
-
-    def exponentialTerm(self, seg_length, seg_source):
-        ans = math.exp(-1 * self.segmentXS(seg_source) * seg_length)
+    def exponentialTerm(self, length, region, p):
+        ans = math.exp(-1 * self.segmentXS(region) * length )#/ self.setup.sintheta_p[p])
         return ans
 
+    def preCalculate(self):
+        p=1
+        for i in range(self.setup.num_azim2):
+            for track in self.tracks[i]:
+                for s in track.segments:
+                    region = s.region
+                    if region == 0:  # moderator
+                        q_seg = self.regions[0].source
+                    elif region == 1:  # fuel
+                        q_seg = self.regions[1].source
+                    length = s.length
+                    exp = self.exponentialTerm(length, region, p)
+                    s.exponential = exp
+                    #self.exponential.append(0)
 
-    def angularFlux(self, psi_in, q_seg, seg_length, seg_source):
-
-        delta_psi = (psi_in - q_seg / self.segmentXS(seg_source)) * (1 - self.exponentialTerm(seg_length, seg_source))
-        #delta_psi = (q_seg / self.segmentXS(seg_source) - psi_in) * (1 - self.exponentialTerm(seg_length, seg_source))
+    def angularFlux(self, flux_in, s, p): #s = segment
+        region = s.region
+        if region == 0: #moderator
+            q_seg = self.regions[0].source
+        elif region == 1: #fuel
+            q_seg = self.regions[1].source
+        #q_seg = region.source
+        length = s.length
+        #delta_psi = (flux_in - q_seg / self.segmentXS(region)) * (1 - self.exponentialTerm(length, region, p))
+        delta_psi = (flux_in - q_seg / self.segmentXS(region)) * (1 - s.exponential)
         return delta_psi
 
-
-    def segmentXS(self, seg_source):
-        sigma_t = 1
-        if seg_source == 0:
+    def segmentXS(self, region):
+        if region == 0:
             sigma_t = self.sigma_t_mod
-        elif seg_source == 1:
+        elif region == 1:
             sigma_t = self.sigma_t_fuel
         return sigma_t
 
-    def totalAngularFlux(self, psi_in, seg_source):
-
-        flux_in = psi_in
-        l=0
-
-        i0 = 0
-        j0 = 0
-        k= 0
-        diff =1
-
-        for p in range(self.n_p):                                       #loop over polar angles
-            for i in range(i0, self.num_azim):
-                #loop over azimuthal angles
-                for j in range(j0, int(self.ntot[i])):                           #loop over tracks
-                    #for l in [0,1]:                                     #loop forward and backward for each track
-                    seglen_count = 0
-                    counter = self.tracklength[i][j]
-                    count = 0
-                    diff = round((counter - seglen_count), 4)
-
-                    while not diff == 0:                 #loop over segments in each track
-                        count += 1
-
-                        seglen_count += self.seglength[k]
-
-                        diff = round((counter - seglen_count), 4)
-
-                        self.delta_flux[k] = self.angularFlux(flux_in, self.q_seg[k], self.seglength[k], self.segsource[k])
+    def solveFlux(self, num_iter_tot, tol):
+        self.preCalculate()
+        stp = self.setup
+        num_iter = 0
+        delta_flux = 0
+        fuel = self.regions[1]
+        mod = self.regions[0]
+        converged = False
+        flux_old = []
+        flux_tot_old = []
+        flux_curr = []
+        flux_tot_curr = []
 
 
-                        print "flux in %f \t delta flux %f \t k %d" %(flux_in, self.delta_flux[k], k)
+        while not converged:   #num_iter < num_iter_tot:
+            for p in range(stp.n_p):                                       #loop over polar angles
+                for i in range(stp.num_azim2):                             #loop over azimuthal angles
+                    for track in self.tracks[i]:                           #loop over all tracks
+                        fuel_old = fuel.flux
+                        mod_old = mod.flux
 
-                        flux_in = flux_in - self.delta_flux[k]
-                        if self.segsource[k] == 1:
-                            fout = flux_in
-                            self.flux_out = flux_in
+                        #del flux_curr[:]
 
-                        if count > 1 and diff == 0 and l == 0:
-                            l += 1
-                            seglen_count = 0
-                            k -= 1
-                            diff = 1
+                        track.quadwt = 4*math.pi* stp.omega_m[i] * stp.t_eff[i] * stp.omega_p[p] * stp.sintheta_p[p]
+                        flux = track.flux_in[0, p]
 
-                        if count > 3 and diff !=0:
-                            k -= 2
-                        if count > 3 and diff == 0 and l>0:
-                            k += 3
-                            l=0
-                            seglen_count = 0
-                            continue
-                        else:
-                            k += 1
-                    if k >= self.num_segments:
-                        break
-                if k >= self.num_segments:
-                    break
-            if k >= self.num_segments:
+                        if num_iter == 0:                                  #initial flux on boundaries is zero
+                            flux = 0
 
-                break
+                        for s in track.segments:                           #loop over segments
 
+                            region = s.region
+                            delta_flux = self.angularFlux(flux, s, p)
+                            flux -= delta_flux
 
-    def scalarFlux(self, sigma, area, omega_m, omega_p, omega_k, sinthetap, segangle):
-        for k in range(self.num_segments):
-            sum1 = 0
-            for p in range(self.n_p):
-                index = segangle[k][0]
-                sum1 += omega_m[index] * omega_p[p] * omega_k[index] * sinthetap[p] * self.delta_flux[k]
-                #for debugging:
-                sum2 = sum1
+                            #print "region %g \t flux in %.1e \t\t delta flux %.1e" % (region, flux, delta_flux)
+                            if region == 1:
+                                fuel.flux += delta_flux * track.quadwt
+                                flux_curr.append(fuel.flux)
+                            elif region == 0:
+                                mod.flux += delta_flux * track.quadwt
+                            else:
+                                print "Error in scalar flux calculation (forward)"
 
+                        track.track_out.flux_in[track.refl_out, p] = flux
 
-            self.psi_scalar[k] = ((4 * math.pi) / (sigma[k]))*(self.q_seg[k] + (1 / area[k]) * (sum1))
-            #below is for debugging
-            scalar1 = self.psi_scalar[k]
-            sig1 = sigma[k]
-            areaa = area[k]
+                        #track in reverse now
+                        flux = track.flux_in[1,p]
+                        if num_iter == 0:
+                            flux = 0
 
+                        for s in track.segments[::-1]:
+                            region = s.region
+                            delta_flux = self.angularFlux(flux, s, p)
+                            flux -= delta_flux
 
-        max1 = max(self.psi_scalar)
-        print "max scalar flux:"
-        print max1
-        print "\n"
+                            if region == 1:
+                                fuel.flux += delta_flux * track.quadwt
+                                flux_curr.append(fuel.flux)
+                            elif region == 0:
+                                mod.flux += delta_flux * track.quadwt
+                            else:
+                                print "Error in scalar flux calculation (reverse)"
 
-        if max1 == 'nan' or round(max1,5) == 0.00000:
-            pass
-        else:
-            for k in range(self.num_segments):
-                self.psi_scalar[k] = self.psi_scalar[k] / max1
-                print " scalar flux %f \t k %d" % (self.psi_scalar[k], k)
+                        track.track_in.flux_in[track.refl_in, p] = flux
 
+            fuel.flux /= fuel.area
+            fuel.flux += fuel.source
+            fuel.flux *= (4 * math.pi) / self.segmentXS(1)
+
+            mod.flux /= mod.area
+            mod.flux += mod.source
+            mod.flux *= (4 * math.pi) / self.segmentXS(0)
+
+            if num_iter == 0:
+                self.dancoff_flux0 = fuel.flux
+                num_iter+=1
+            elif num_iter >= 1:
+                print "Checking convergence for iteration %d" % (num_iter+1)
+                converged = self.check.isConverged(flux_curr, flux_old, tol)
+
+                if converged:
+                    print "\nNumber of iterations to convergence: %d" % (num_iter+1)
+                    print self.check.computeDancoff(self.dancoff_flux0, fuel.flux)
+                elif num_iter >= num_iter_tot:
+                    print "Total number of iterations reached before convergence. Break."
+                    converged = True
+                else:
+                    num_iter +=1
+
+            flux_old[:] = []
+            flux_old = flux_curr[:]
+            flux_curr[:] = []
+
+        print "\nSCALAR FLUX\n-----------" \
+              "\nFuel = \t\t\t%g \nModerator = \t%g" \
+              "\nNumber of iterations: %d" % (fuel.flux, mod.flux, num_iter+1)
 
 
 class ConvergenceTest(object):
@@ -143,23 +164,20 @@ class ConvergenceTest(object):
 
     def isConverged(self, vec_n, vec_n1, epsilon):
         sum1 = 0
-        print "Convergence error:"
         for i in range(len(vec_n)):
-            if round(vec_n[i],7) == 0:
-                vec_n[i] = 0.000001
-                error1 = ((vec_n[i] - vec_n1[i])/vec_n[i]) ** 2
-                print error1
+           # if round(vec_n[i],10) == 0:
+            #    vec_n[i] = 0.000000000000001
+            error1 = ((vec_n[i] - vec_n1[i])/vec_n[i]) ** 2
             sum1 += error1
         I = len(vec_n)
-        l2 = math.sqrt((1 / I) * sum1)
+        l2 = math.sqrt(sum1 / I)
 
         if l2 < epsilon:
-            print "Converged! l2 %f" %(l2)
+            print "Converged! l2 %g" %(l2)
             return True
         else:
-            print "Not converged; l2 %f" %(l2)
+            print "Not converged; l2 %g" %(l2)
             return False
-
 
     def sourceProptoXSTest(self, xsfuel, xsmod):
         """test that sets source in each region proportional to the cross section in that region
@@ -178,35 +196,25 @@ class ConvergenceTest(object):
     def dancoffFactor(self):
         qfuel = 1e3
         qmod = 0
-        psi_in = 0
         sigma_fuel = 1e5
-        return qfuel, qmod, psi_in, sigma_fuel
+        return qfuel, qmod, sigma_fuel
+
+    def computeDancoff(self, phi_1, phi_fin):
+        return 1 - phi_fin/phi_1
 
 
-class FlatSourceApproximation(object):
-    def __init__(self, q_fuel, q_mod, qweight):
+class FlatSourceRegion(object):
+    def __init__(self, source, xs):
 
         """
         This class generates the source for each flat source (and updates it, if not constant isotropic)
         """
+        self.volume = 0
+        self.area = 0
+        self.flux = 0
+        self.source = source
+        self.sigma = xs
+        #self.segments = []
 
-        self.q_fuel = q_fuel
-        self.q_mod = q_mod
-        self.qweight = qweight
-        self.qseg = np.zeros(1000)
-        self.sigma_FSR = np.zeros(1000)
-
-    def computeSource(self, num_seg, sigma_a, sigma_r):
-        print "Determining source values for segment regions..."
-        for k in range(num_seg):
-            # self.qseg[k] = self.q_fuel * self.qweight[k]
-            if self.qweight[k] == 0:  # moderator
-                self.sigma_FSR[k] = sigma_a
-                self.qseg[k] = self.q_mod
-            elif self.qweight[k] == 1:
-                self.sigma_FSR[k] = sigma_r
-                self.qseg[k] = self.q_fuel
-
-    def checkVals(self):
-        print self.qweight
-
+    def dancoffFlux(self, dflux):
+        pass
