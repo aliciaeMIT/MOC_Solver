@@ -7,25 +7,26 @@ from flux import FlatSourceRegion, MethodOfCharacteristics, ConvergenceTest
 ########## PROBLEM SETUP ##########
 ###################################
 
-num_azim = 32                   #number of azimuthal angles desired
+num_azim = 16                   #number of azimuthal angles desired
 t = 0.05                        #track spacing desired, cm
 h = 1.26                        #height of pincell
 w = 1.26                        #width of pincell
 r = 0.4                         #fuel pin radius
-n_p = 3                         #number of polar divisions; can be 2 or 3
-num_iter_max = 100              #maximum number of iterations on flux
+n_p = 3                        #number of polar divisions; can be 2 or 3
+num_iter_max = 150              #maximum number of iterations on flux
 tol = 1e-10                     #tolerance for convergence (using L2 Engineering Norm)
 
 #########################################
 ########## MATERIAL PROPERTIES ##########
 #########################################
 
-q_fuel = 100                    #constant isotropic source in fuel
+q_fuel = 1e3                     #constant isotropic source in fuel
 q_mod = 0                       #no source in moderator
-ndensity_fuel = 2.2e22          #atoms/cc
-ndensity_mod = 1.0e21           #at/cc
-sigma_a = 1000                  #fuel absorption cross section (cm^2)
-sigma_r = (11.4 + 8)* 1e-24     #moderator absorption cross section (cm^2)
+ndensity_fuel = 2.2e22          #atoms/cc (UO2)
+ndensity_mod = 1.0e21           #at/cc (H2O)
+sigma_a = 1e-24#5 * 1e-24                  #moderator absorption cross section (cm^2)
+sigma_r = (11.4 + 8)* 1e-24     #fuel absorption cross section (cm^2)
+
 
 #######################################
 ########## CHOOSE TEST CASES ##########
@@ -40,8 +41,8 @@ test_dancoff = True
 ########## MACROSCOPIC CROSS SECTIONS ##########
 ################################################
 
-sigma_t_fuel = sigma_r * ndensity_fuel
-sigma_t_mod = sigma_a * ndensity_mod
+sigma_t_fuel = 1e5#sigma_r * ndensity_fuel
+sigma_t_mod = 1#sigma_a * ndensity_mod
 
 
 ####################################
@@ -56,7 +57,7 @@ if test_qpropto:
     q_fuel, q_mod = check.sourceProptoXSTest(sigma_t_fuel, sigma_t_mod)
 
 if test_dancoff:
-    q_fuel, q_mod, sigma_t_fuel = check.dancoffFactor()
+    q_fuel, q_mod, sigma_t_fuel = check.dancoffFactor(q_fuel)
 
 ###############################################
 ########## SETUP FLAT SOURCE REGIONS ##########
