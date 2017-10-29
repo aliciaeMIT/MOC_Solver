@@ -430,7 +430,7 @@ class InitializeTracks(object):
                 for track in self.tracks[i]: #loop over all tracks
                     for s in track.segments: #loop over all segments
                         s.volume = self.omega_m[i] * self.t_eff[i] * s.length *  self.sintheta_p[p]
-                        quadweight =  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] * self.sintheta_p[p]
+                        quadweight =  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] #* self.sintheta_p[p]
                         s.area = quadweight * s.length
                         area += s.area
                         if s.region == 0:
@@ -593,38 +593,37 @@ class InitializeTracks(object):
                         if startval == endval or startval == start2 and not (track == track1):
                             print "coordinates match! startval[%d][%d] == endval[%d][%d]" % (i, j, g, h)
 
-    def plotScalarFlux(self, scalarflux):
-        pass
-        """
+    def plotScalarFlux(self, flux_fuel, flux_mod):
+
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
-        xvals = np.zeros(len(scalarflux))
-        yvals = np.zeros(len(scalarflux))
-        fluxes = np.zeros(len(scalarflux))
-        coords = np.zeros(len(scalarflux))
 
-        for k in range(self.num_segments):
-            x1 = self.segmidpt[k][0]
-            y1 = self.segmidpt[k][1]
-            coords[k] = (x1, y1, k)
-            xvals[k] = x1
-            yvals[k] = y1
-            fluxes[k] = scalarflux[k]
-        
+        xvals = np.linspace(0, self.width, 100)
+        yvals = np.zeros(len(xvals))
+        for i in range(len(xvals)):
+            dist = self.width/2 - self.radius
+            if xvals[i] < dist or xvals[i] > (dist + 2 * self.radius):
+                yvals[i] = flux_mod
+            else:
+                yvals[i] = flux_fuel
+
+        plt.plot(xvals, yvals, 'm--')
+        plt.show()
+
         #fluxes = np.reshape(scalarflux, [len(xvals), len(yvals)])
         #xvals, yvals = np.meshgrid(xvals,yvals)
         #fluxes = np.array(scalarflux)
 
         #plt.imshow(scalarflux)
         #plt.pcolormesh(xvals, yvals, fluxes.reshape(xvals.shape))
-        heatmap, _, _ = np.histogram2d(xvals, yvals, weights=fluxes)
-        plt.clf()
-        plt.imshow(heatmap)
-        plt.show()
-        """
+        #heatmap, _, _ = np.histogram2d(xvals, yvals, weights=fluxes)
+        #plt.clf()
+        #plt.imshow(heatmap)
+        #plt.show()
+
 
 class SingleTrack(object):
     def __init__(self, start_coords, end_coords, phi):
@@ -639,7 +638,7 @@ class SingleTrack(object):
         self.track_out = None
         self.segments = []
         self.flux_in = np.zeros((2,3))
-        #self.flux_out = np.zer
+
 
 class SingleSegment(object):
     def __init__(self, start_coords, end_coords, region, length):
