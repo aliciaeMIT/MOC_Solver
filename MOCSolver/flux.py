@@ -69,7 +69,7 @@ class MethodOfCharacteristics(object):
         flux_old = []
         flux_curr = []
         flux_curr_tot = []
-
+        normalize = []
 
         while not converged:
             flux_curr[:] = []
@@ -170,23 +170,35 @@ class MethodOfCharacteristics(object):
             b2 = fuel.area
             b3 = fuel.source
             b4 = 4 * math.pi / self.segmentXS(1)
-
-
             c2 = mod.area
             c3 = mod.source
             c4 = 4 * math.pi / self.segmentXS(0)
-
             mod1= mod.flux
 
-            if num_iter <= 1:
+            #normalize fuel flux to 1.0
+            """
+            if max(flux_curr_tot) > normalize:
+                normalize = max(flux_curr_tot)
+            fuel.flux /= normalize
+            mod.flux /= normalize
+
+            for flux in flux_curr:
+                flux /= normalize
+            print fuel.flux
+            """
+            #for debugging; still need to properly normalize fluxes
+            normalize.append(max(flux_curr_tot))
+
+            if num_iter == 0:
                 if fuel.flux < 0:
                     print "first pass flux negative"
-                    num_iter+=1
-                    pass
+                    #will make loop infinite for debugging.
+
                 else:
                     self.dancoff_flux0 = fuel.flux
-                    normlz = max(flux_curr_tot)
-                    self.dancoff_flux0 /= normlz
+                    #normlz = fuel.flux
+                    #self.dancoff_flux0 /= normlz
+                    print "dancoff first flux: %f"%(self.dancoff_flux0)
                     num_iter+=1
             elif num_iter >= 1:
                 print "Checking convergence for iteration %d" % (num_iter)
@@ -203,14 +215,6 @@ class MethodOfCharacteristics(object):
                     print "Dancoff factor: %f" % (dancoff)
                 else:
                     num_iter +=1
-
-            normalize = max(flux_curr_tot)
-            fuel.flux /= normalize
-            mod.flux /= normalize
-
-            for flux in flux_curr:
-                flux /= normalize
-
 
             #clear previous arrays; set new values equal to old values for next run
             flux_old[:] = []
@@ -271,9 +275,11 @@ class ConvergenceTest(object):
     def computeDancoff(self, phi_1, phi_fin, source, xs):
         const = 4 * math.pi * source / xs
         print "Dancoff numerator: %f" % (const - phi_fin)
-        print phi_fin
         print "Dancoff denominator: %f" % (const - phi_1)
+        print phi_fin
         print phi_1
+        print phi_fin/phi_1
+        print (const-phi_fin)/(const - phi_1)
         return 1 - phi_fin / phi_1
         #return 1 - (const - phi_fin)/ (const - phi_1)
 

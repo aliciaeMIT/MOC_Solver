@@ -49,6 +49,50 @@ class InitializeTracks(object):
 
     def makeTracks(self):
         self.tracks = [[] for _ in range(self.num_azim2)] #self.tracks[i][j] to get a given track
+        print("Getting ray entrance coordinates...\n")
+        print("Getting ray exit coordinates...\n")
+
+        # Create tracks in [0, pi/4]
+        for i in range(self.num_azim2//2):
+            for j in range(self.nx[i] + self.ny[i]):
+                if j < self.nx[i]:
+                    start = (self.width - (j+0.5) * self.dx[i], 0.0)
+                else:
+                    start = (0.0, (j-self.nx[i]+0.5) * self.dy[i])
+
+                if j < self.ny[i]:
+                    end = (self.width, (j+0.5)*self.dy[i])
+                else:
+                    end = (self.width - (j-self.ny[i]+0.5) * self.dx[i], self.height)
+
+                self.startpoint[i].append(start)
+                self.endpoint[i].append(end)
+                thisTrack = SingleTrack(self.startpoint[i][j], self.endpoint[i][j], self.phi_eff[i])
+                self.tracks[i].append(thisTrack)
+
+        # Create tracks in [pi/4, pi/2]
+        for i in range(self.num_azim2//2):
+            ii = self.num_azim2//2 - i - 1
+            for j in range(self.nx[ii] + self.ny[ii]):
+                if j < self.nx[ii]:
+                    start = ((j+0.5) * self.dx[ii], 0.0)
+                else:
+                    start = (self.width, (j-self.nx[ii]+0.5) * self.dy[ii])
+
+                if j < self.ny[ii]:
+                    end = (0.0, (j+0.5)*self.dy[ii])
+                else:
+                    end = ((j-self.ny[ii]+0.5) * self.dx[ii], self.height)
+
+                self.startpoint[self.num_azim2//2+i].append(start)
+                self.endpoint[self.num_azim2//2+i].append(end)
+                thisTrack = SingleTrack(self.startpoint[self.num_azim2//2+i][j],
+                                        self.endpoint[self.num_azim2//2+i][j],
+                                        self.phi_eff[self.num_azim2//2+i])
+                self.tracks[self.num_azim2//2+i].append(thisTrack)
+    """
+    def makeTracks(self):
+        self.tracks = [[] for _ in range(self.num_azim2)] #self.tracks[i][j] to get a given track
         print "Getting ray entrance coordinates...\n"
         print "Getting ray exit coordinates...\n"
         for i in range(self.num_azim2):
@@ -73,7 +117,7 @@ class InitializeTracks(object):
                 self.endpoint[i].append(self.getEnd(i,j))
                 thisTrack = SingleTrack(self.startpoint[i][j], self.endpoint[i][j], self.phi_eff[i])
                 self.tracks[i].append(thisTrack)
-
+    """
     def plotTracks(self):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')

@@ -42,7 +42,7 @@ test_dancoff = False
 ################################################
 
 sigma_t_fuel = 1e5#sigma_r * ndensity_fuel
-sigma_t_mod = 1e5#sigma_a * ndensity_mod
+sigma_t_mod = 1#sigma_a * ndensity_mod
 
 
 ####################################
