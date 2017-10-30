@@ -20,7 +20,7 @@ tol = 1e-10                     #tolerance for convergence (using L2 Engineering
 ########## MATERIAL PROPERTIES ##########
 #########################################
 
-q_fuel = 1e3                     #constant isotropic source in fuel
+q_fuel = 1                     #constant isotropic source in fuel
 q_mod = 0                       #no source in moderator
 ndensity_fuel = 2.2e22          #atoms/cc (UO2)
 ndensity_mod = 1.0e21           #at/cc (H2O)
@@ -34,7 +34,7 @@ sigma_r = (11.4 + 8)* 1e-24     #fuel absorption cross section (cm^2)
 
 test_sourcexsconst = False
 test_qpropto = False
-test_dancoff = True
+test_dancoff = False
 
 
 ################################################
@@ -85,14 +85,14 @@ setup.getFSRVolumes(fuel, mod)
 ########## PLOTTING ##########
 ##############################
 
-#tracks.plotTracks()
-#tracks.plotTrackLinking(i,j)
-#tracks.plotSegments()
+#setup.plotTracks()
+#setup.plotTrackLinking(2,3)
+#setup.plotSegments()
 
 ######################################
 ########## SOLVE FOR FLUXES ##########
 ######################################
 
 flux = MethodOfCharacteristics(sigma_t_fuel, sigma_t_mod, fsr, setup, check)
-flux.solveFlux(num_iter_max, tol)
+#flux.solveFlux(num_iter_max, tol)
 
