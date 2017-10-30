@@ -56,7 +56,7 @@ class InitializeTracks(object):
             yin = np.zeros(self.ntot[i])
 
             xin[:self.nx[i]] = self.dx[i]*(0.5 + np.arange(self.nx[i]))
-            yin[:self.nx[i]] = 0
+           # yin[:self.nx[i]] = 0
             yin[self.nx[i]:]= self.dy[i] * (0.5 + np.arange(self.ny[i]))
 
             if math.sin(self.phi_eff[i]) > 0 and math.cos(self.phi_eff[i]) > 0:
@@ -81,8 +81,8 @@ class InitializeTracks(object):
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
 
-        for i in range(self.num_azim2):
-        #for i in [0, 4]: #for debugging, to plot complementary angles (tracks should be cyclic)
+        #for i in range(self.num_azim2):
+        for i in [0, self.num_azim2-1]: #for debugging, to plot complementary angles (tracks should be cyclic)
 
             counter = int(self.ntot[i])
 
@@ -135,8 +135,8 @@ class InitializeTracks(object):
                 break
 
             self.phi.append(math.pi / self.num_azim2 * (0.5 + i))
-            self.nx.append(int(math.fabs((self.width / self.spacing) * math.sin(self.phi[i])) + 1))
-            self.ny.append(int(math.fabs((self.height / self.spacing) * math.cos(self.phi[i]))))
+            self.nx.append(int(np.ceil((self.width / self.spacing) * math.sin(self.phi[i]))))
+            self.ny.append(int(np.ceil((self.height / self.spacing) * math.cos(self.phi[i]))))
             self.phi_eff.append(math.atan2((self.height * self.nx[i]), (self.width * self.ny[i])))
             self.phi_comp.append(math.pi - self.phi_eff[i])
             self.t_eff.append((self.width / self.nx[i]) * math.sin(self.phi_eff[i]))
@@ -144,7 +144,8 @@ class InitializeTracks(object):
             self.dy.append(self.height / self.ny[i])
 
 
-        for i in range(self.num_azim2/2):
+        for i in reversed(range(self.num_azim2//2)):
+        #for i in range(self.num_azim2//2):
             #complementary angle
             k = i
             self.phi_eff.append(self.phi_comp[k])
@@ -178,13 +179,13 @@ class InitializeTracks(object):
         self.omega_m = []
         for i in range(self.num_azim2):
             if (i == 0):
-                self.omega_m.append((((self.phi[i + 1] - self.phi[i]) / 2) + self.phi[i]) / (2 * math.pi))
+                self.omega_m.append((((self.phi_eff[i + 1] - self.phi_eff[i]) / 2) + self.phi_eff[i]) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             elif (i < (self.num_azim2 - 1)):
-                self.omega_m.append((((self.phi[i + 1] - self.phi[i]) / 2) + ((self.phi[i] - self.phi[i - 1]) / 2)) / (2 * math.pi))
+                self.omega_m.append((((self.phi_eff[i + 1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i - 1]) / 2)) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             else:
-                self.omega_m.append((2 * math.pi - self.phi[i] + (self.phi[i] - self.phi[i - 1]) / 2) / (2 * math.pi))
+                self.omega_m.append((math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i - 1]) / 2) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
         print "Calculating azimuthal weights...."
         print self.omega_m
@@ -299,13 +300,53 @@ class InitializeTracks(object):
         return newSeg
 
     def reflectRays(self):
-        """
-        (inspired by Paul Romano's MOC solver)
-        """
+        #(inspired by Paul Romano's MOC solver)
+
+        print("Linking tracks...")
+        for i in range(self.num_azim2//2):
+            ii = self.num_azim2 - i - 1
+            nx = self.nx[i]
+            ny = self.ny[i]
+            for j in range(nx + ny):
+                track = self.tracks[i][j]
+
+                # Set track in fwd direction
+                if j < ny:
+                    next_track = self.tracks[ii][nx+j]
+                    track.track_in = next_track
+                    track.refl_in = 1
+                    next_track.track_out = track
+                    next_track.refl_out = 0
+                else:
+                    next_track = self.tracks[ii][nx+2*ny-j-1]
+                    track.track_in = next_track
+                    track.refl_in = 0
+                    next_track.track_in = track
+                    next_track.refl_in = 0
+
+                # Set track in bwd direction
+                if j < nx:
+                    next_track = self.tracks[ii][nx-j-1]
+                    track.track_out = next_track
+                    track.refl_out = 1
+                    next_track.track_out = track
+                    next_track.refl_out = 1
+                else:
+                    next_track = self.tracks[ii][j-nx]
+                    track.track_out = next_track
+                    track.refl_out = 0
+                    next_track.track_in = track
+                    next_track.refl_in = 1
+
+    """
+    def reflectRays(self):
+        
+        #(inspired by Paul Romano's MOC solver)
+        
         print "Linking tracks..."
         for i in range(int(self.num_azim2/2)):
-            #reflected_track = self.tracks[-(i+1)]
-            reflected_track = self.tracks[self.num_azim2/2+i]
+            reflected_track = self.tracks[-(i+1)]
+            #reflected_track = self.tracks[self.num_azim2/2+i]
             nx = self.nx[i]
             ny = self.ny[i]
 
@@ -379,6 +420,7 @@ class InitializeTracks(object):
                         reflected_track[m].track_out = track
                         track.refl_out = 1
                         reflected_track[m].refl_out = 1
+    """
 
     def plotSegments(self):
         fig1 = plt.figure()
@@ -430,7 +472,7 @@ class InitializeTracks(object):
                 for track in self.tracks[i]: #loop over all tracks
                     for s in track.segments: #loop over all segments
                         s.volume = self.omega_m[i] * self.t_eff[i] * s.length *  self.sintheta_p[p]
-                        quadweight =  self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] #* self.sintheta_p[p]
+                        quadweight = 2* self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] #* self.sintheta_p[p]
                         s.area = quadweight * s.length
                         area += s.area
                         if s.region == 0:
@@ -497,7 +539,8 @@ class InitializeTracks(object):
         #print "Boundary ID for point (%.4f, %.4f): \t %d" %(x,y,boundary_id)
         return boundary_id
 
-    def plotTrackLinking(self):
+    """
+    def plotTrackLinking(self, i, j):
         nrows = 10
         ncols = 10
         fig, axes = plt.subplots(nrows, ncols, figsize = (ncols*2,nrows*2), sharex=True, sharey=True)
@@ -505,8 +548,8 @@ class InitializeTracks(object):
 
         plt.axis([0, self.width, 0, self.height])
 
-        i = 0
-        j=0
+        #i = 0
+        #j=0
         starting = self.tracks[i][j].start_coords
         intrack = self.tracks[i][j]
         out = intrack.track_out
@@ -559,6 +602,34 @@ class InitializeTracks(object):
             fig.delaxes(ax)
         plt.draw()
         plt.show()
+    """
+    def plotTrackLinking(self):
+
+        plt.figure(figsize=(12,9))
+        fwd = True
+        for i in range(1,13):
+            plt.subplot(3,4,i)
+            track = self.tracks[0][0]
+            fwd = True
+            for j in range(i):
+                plt.plot([track.start_coords[0], track.end_coords[0]],
+                         [track.start_coords[1], track.end_coords[1]], 'k')
+
+                # Get the next track and bool indicating direction on next track
+                if fwd:
+                    fwd = track.refl_in
+                    track = track.track_in
+                else:
+                    fwd = track.refl_out
+                    track = track.track_out
+
+            plt.title('num tracks = {}'.format(i))
+            plt.xlim([0, self.width])
+            plt.ylim([0, self.height])
+        #plt.tight_layout()
+        plt.show()
+        #plt.savefig('connecting_tracks.png')
+        #plt.close()
 
     def getTrackLinkCoords(self):
         for i in range(self.num_azim2):
