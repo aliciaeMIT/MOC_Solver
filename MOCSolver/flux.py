@@ -35,8 +35,9 @@ class MethodOfCharacteristics(object):
                         elif region == 1:  # fuel
                             q_seg = self.regions[0].source
                         length = s.length
-                        exp.append(self.exponentialTerm(length, region, p))
-                        s.exponential = exp
+                        #exp.append(self.exponentialTerm(length, region, p))
+                        #s.exponential = exp
+                        s.exponential.append(self.exponentialTerm(length, region, p))
 
     def angularFlux(self, flux_in, s, p): #s = segment
         region = s.region
