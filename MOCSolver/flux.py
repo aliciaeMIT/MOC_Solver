@@ -38,6 +38,7 @@ class MethodOfCharacteristics(object):
                         #exp.append(self.exponentialTerm(length, region, p))
                         #s.exponential = exp
                         s.exponential.append(self.exponentialTerm(length, region, p))
+                        #
 
     def angularFlux(self, flux_in, s, p): #s = segment
         region = s.region

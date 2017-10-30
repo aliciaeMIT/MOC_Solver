@@ -762,4 +762,4 @@ class SingleSegment(object):
         self.end_coords = end_coords
         self.region = region
         self.length = length
-        self.exponential = 0
+        self.exponential = []
