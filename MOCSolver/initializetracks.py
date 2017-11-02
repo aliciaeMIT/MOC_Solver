@@ -1,3 +1,7 @@
+#Alicia M. Elliott, 22.212 Fall 2017
+#Method of Characteristics solver
+#2D pincell, fixed isotropic source in fuel
+
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -90,34 +94,7 @@ class InitializeTracks(object):
                                         self.endpoint[self.num_azim2//2+i][j],
                                         self.phi_eff[self.num_azim2//2+i])
                 self.tracks[self.num_azim2//2+i].append(thisTrack)
-    """
-    def makeTracks(self):
-        self.tracks = [[] for _ in range(self.num_azim2)] #self.tracks[i][j] to get a given track
-        print "Getting ray entrance coordinates...\n"
-        print "Getting ray exit coordinates...\n"
-        for i in range(self.num_azim2):
-            xin = np.zeros(self.ntot[i])
-            yin = np.zeros(self.ntot[i])
 
-            xin[:self.nx[i]] = self.dx[i]*(0.5 + np.arange(self.nx[i]))
-           # yin[:self.nx[i]] = 0
-            yin[self.nx[i]:]= self.dy[i] * (0.5 + np.arange(self.ny[i]))
-
-            if math.sin(self.phi_eff[i]) > 0 and math.cos(self.phi_eff[i]) > 0:
-                #xin[self.nx:] = 0
-                #redundant to set it to zero; initialized with zeros.
-                pass
-            elif math.sin(self.phi_eff[i]) > 0 and math.cos(self.phi_eff[i]) < 0:
-                xin[self.nx[i]:] = self.width
-            else:
-                print "Error in makeTracks method"
-
-            for j in range(int(self.ntot[i])):
-                self.startpoint[i].append((xin[j], yin[j]))
-                self.endpoint[i].append(self.getEnd(i,j))
-                thisTrack = SingleTrack(self.startpoint[i][j], self.endpoint[i][j], self.phi_eff[i])
-                self.tracks[i].append(thisTrack)
-    """
     def plotTracks(self):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
@@ -127,9 +104,7 @@ class InitializeTracks(object):
 
         for i in range(self.num_azim2):
         #for i in [0, self.num_azim2-1]: #for debugging, to plot complementary angles (tracks should be cyclic)
-
             counter = int(self.ntot[i])
-
             for j in range(counter):
                 try:
                     x1 = self.tracks[i][j].start_coords[0]
@@ -175,7 +150,7 @@ class InitializeTracks(object):
             if ((self.num_azim2 * 2)% 4 == 0):
                 pass
             else:
-                print "Error! Number of azimuthal angles must be a multiple of 4 for reflective geometry."
+                print "Error: Number of azimuthal angles must be a multiple of 4 for reflective geometry."
                 break
 
             self.phi.append(math.pi / self.num_azim2 * (0.5 + i))
@@ -189,7 +164,6 @@ class InitializeTracks(object):
 
 
         for i in reversed(range(self.num_azim2//2)):
-        #for i in range(self.num_azim2//2):
             #complementary angle
             k = i
             self.phi_eff.append(self.phi_comp[k])
@@ -344,7 +318,6 @@ class InitializeTracks(object):
         return newSeg
 
     def reflectRays(self):
-        #(inspired by Paul Romano's MOC solver)
 
         print("Linking tracks...")
         for i in range(self.num_azim2//2):
@@ -381,90 +354,6 @@ class InitializeTracks(object):
                     track.refl_out = 0
                     next_track.track_in = track
                     next_track.refl_in = 1
-
-    """
-    def reflectRays(self):
-        
-        #(inspired by Paul Romano's MOC solver)
-        
-        print "Linking tracks..."
-        for i in range(int(self.num_azim2/2)):
-            reflected_track = self.tracks[-(i+1)]
-            #reflected_track = self.tracks[self.num_azim2/2+i]
-            nx = self.nx[i]
-            ny = self.ny[i]
-
-            for j, track in enumerate(self.tracks[i]):
-                if nx <= ny:
-                    if j < nx:
-                        #rays beginning on bottom, ending on right boundary
-                        k = 2*nx-1-j
-                        track.track_in = reflected_track[j]
-                        track.track_in.track_in = track
-                        #reflected_track[j].track_in = track
-                        track.refl_in = 0
-                        reflected_track[j].refl_in = 0
-                        track.track_out = reflected_track[k]
-                        reflected_track[k].track_in = track
-                        track.refl_out = 0
-                        reflected_track[k].refl_in = 1
-                    elif j < ny: #left to right boundary
-                        k = j-nx
-                        m = j+nx
-                        track.track_in = reflected_track[k]
-                        reflected_track[k].track_out = track
-                        track.refl_in = 1
-                        reflected_track[k].refl_out = 0
-
-                        track.track_out = reflected_track[m]
-                        reflected_track[m].track_in = track
-                        track.refl_out = 0
-                        reflected_track[m].refl_in = 1
-                    else: #left to top boundary
-                        k = j-nx
-                        m = -(nx-(self.ntot[i] - j)+1)
-                        track.track_in = reflected_track[k]
-                        reflected_track[k].track_out = track
-                        track.refl_in = 1
-                        reflected_track[k].refl_out = 0
-                        track.track_out = reflected_track[m]
-                        reflected_track[m].track_out = track
-                        track.refl_out = 1
-                        reflected_track[m].refl_out = 1
-                else:
-                    if j < (nx-ny): #bottom to right
-                        k = self.ntot[i] - (nx-ny)+j
-                        track.track_in = reflected_track[j]
-                        reflected_track[j].track_in = track
-                        track.refl_in = 0
-                        reflected_track[j].refl_in = 0
-                        track.track_out = reflected_track[k]
-                        reflected_track[k].track_out = track
-                        track.refl_out = 1
-                        reflected_track[k].refl_out = 1
-
-                    elif j<nx: #left to right
-                        k = nx + (nx-j)-1
-                        track.track_in = reflected_track[j]
-                        reflected_track[j].track_in = track
-                        track.refl_in = 0
-                        reflected_track[j].refl_in = 0
-                        track.track_out = reflected_track[k]
-                        reflected_track[k].track_in = track
-                        track.refl_out = 0
-                        reflected_track[k].refl_in = 1
-                    else: #left to top
-                        k = j-nx
-                        m = ny + (self.ntot[i]-j) -1
-                        track.track_in = reflected_track[k]
-                        reflected_track[k].track_out = track
-                        track.refl_in = 1
-                        reflected_track[k].refl_out = 0
-                        track.track_out = reflected_track[m]
-                        reflected_track[m].track_out = track
-                        track.refl_out = 1
-                        reflected_track[m].refl_out = 1
-    """
 
     def plotSegments(self):
         fig1 = plt.figure()
@@ -511,12 +400,12 @@ class InitializeTracks(object):
         area = 0
         quadweight = 0
 
-        for p in range(self.n_p):    #loop over polar angles
-            for i in range(self.num_azim2):#loop over all angles
-                for track in self.tracks[i]: #loop over all tracks
-                    for s in track.segments: #loop over all segments
+        for p in range(self.n_p):                   #loop over polar angles
+            for i in range(self.num_azim2):         #loop over all angles
+                for track in self.tracks[i]:        #loop over all tracks
+                    for s in track.segments:        #loop over all segments
                         s.volume = self.omega_m[i] * self.t_eff[i] * s.length *  self.sintheta_p[p]
-                        quadweight = self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] #* self.sintheta_p[p]
+                        quadweight = self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]
                         s.area = quadweight * s.length
                         area += s.area
                         if s.region == 0:
@@ -539,7 +428,6 @@ class InitializeTracks(object):
         corr_mod = est_area_mod / mod.area
         print "fuel track area correction factor: %f \nmod track area correction factor: %f\n" %(corr_fuel, corr_mod)
 
-
         for i in range(self.num_azim2):  # loop over all angles
             for track in self.tracks[i]:  # loop over all tracks
                 for s in track.segments:  # loop over all segments
@@ -548,6 +436,7 @@ class InitializeTracks(object):
 
                     elif s.region == 1:
                         s.length *= corr_fuel
+
         fuel.area = est_area_fuel
         mod.area = est_area_mod
 
@@ -585,70 +474,6 @@ class InitializeTracks(object):
         #print "Boundary ID for point (%.4f, %.4f): \t %d" %(x,y,boundary_id)
         return boundary_id
 
-    """
-    def plotTrackLinking(self, i, j):
-        nrows = 10
-        ncols = 10
-        fig, axes = plt.subplots(nrows, ncols, figsize = (ncols*2,nrows*2), sharex=True, sharey=True)
-        axes_list = [item for sublist in axes for item in sublist]
-
-        plt.axis([0, self.width, 0, self.height])
-
-        #i = 0
-        #j=0
-        starting = self.tracks[i][j].start_coords
-        intrack = self.tracks[i][j]
-        out = intrack.track_out
-        count = 0
-
-        while True:
-            count+=1
-            x1 = intrack.start_coords[0]
-            x2 = intrack.end_coords[0]
-            y1 = intrack.start_coords[1]
-            y2 = intrack.end_coords[1]
-
-            xvals = [x1, x2]
-            yvals = [y1,y2]
-            for l in range(len(axes_list)):
-                ax = axes_list[l]
-                ax.plot(xvals, yvals)
-            ax = axes_list.pop(0)
-
-            if intrack.track_out == out and count > 1:
-                out = intrack.track_in
-            else:
-                out = intrack.track_out
-
-            x3 = out.start_coords[0]
-            x4 = out.end_coords[0]
-            y3 = out.start_coords[1]
-            y4 = out.end_coords[1]
-
-            xvals1 = [x3, x4]
-            yvals1 = [y3, y4]
-
-            for l in range(len(axes_list)):
-                ax = axes_list[l]
-                ax.plot(xvals1, yvals1)
-            ax = axes_list.pop(0)
-
-            if intrack == out.track_out:
-                intrack = out.track_in
-            else:
-                intrack = out.track_out
-
-            if intrack.start_coords == starting or intrack.end_coords == starting:
-                break
-            elif out.start_coords == starting or out.end_coords == starting:
-                break
-            else:
-                print "loop number %d" %(count)
-        for ax in axes_list:
-            fig.delaxes(ax)
-        plt.draw()
-        plt.show()
-    """
     def plotTrackLinking(self):
 
         plt.figure(figsize=(12,9))
