@@ -125,8 +125,8 @@ class InitializeTracks(object):
         c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
 
-        #for i in range(self.num_azim2):
-        for i in [0, self.num_azim2-1]: #for debugging, to plot complementary angles (tracks should be cyclic)
+        for i in range(self.num_azim2):
+        #for i in [0, self.num_azim2-1]: #for debugging, to plot complementary angles (tracks should be cyclic)
 
             counter = int(self.ntot[i])
 
@@ -223,13 +223,13 @@ class InitializeTracks(object):
         self.omega_m = []
         for i in range(self.num_azim2):
             if (i == 0):
-                self.omega_m.append((((self.phi_eff[i + 1] - self.phi_eff[i]) / 2) + self.phi_eff[i]) / (2 * math.pi))
+                self.omega_m.append(2*(((self.phi_eff[i + 1] - self.phi_eff[i]) / 2) + self.phi_eff[i]) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             elif (i < (self.num_azim2 - 1)):
-                self.omega_m.append((((self.phi_eff[i + 1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i - 1]) / 2)) / (2 * math.pi))
+                self.omega_m.append(2*(((self.phi_eff[i + 1] - self.phi_eff[i]) / 2) + ((self.phi_eff[i] - self.phi_eff[i - 1]) / 2)) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
             else:
-                self.omega_m.append((math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i - 1]) / 2) / (2 * math.pi))
+                self.omega_m.append(2*(math.pi - self.phi_eff[i] + (self.phi_eff[i] - self.phi_eff[i - 1]) / 2) / (2 * math.pi))
                 omega_m_tot += self.omega_m[i]
         print "Calculating azimuthal weights...."
         print self.omega_m
@@ -516,7 +516,7 @@ class InitializeTracks(object):
                 for track in self.tracks[i]: #loop over all tracks
                     for s in track.segments: #loop over all segments
                         s.volume = self.omega_m[i] * self.t_eff[i] * s.length *  self.sintheta_p[p]
-                        quadweight = 2* self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] #* self.sintheta_p[p]
+                        quadweight = self.omega_m[i]  * self.t_eff[i] * self.omega_p[p] #* self.sintheta_p[p]
                         s.area = quadweight * s.length
                         area += s.area
                         if s.region == 0:
@@ -548,6 +548,8 @@ class InitializeTracks(object):
 
                     elif s.region == 1:
                         s.length *= corr_fuel
+        fuel.area = est_area_fuel
+        mod.area = est_area_mod
 
     def findBoundaryID(self, coords):
         #finds which boundary a start/endpoint lies on. takes in a tuple of coordinates
