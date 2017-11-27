@@ -285,12 +285,18 @@ class InitializeTracks(object):
                 if n_ints == 2:
 
                     if l_int and r_int: #left, right
-                        # first intersection point
-                        fx = xr
-                        fy = yr
-                        # second intersection point
-                        gx = xl
-                        gy = yl
+                        if m > 0:
+                            # first intersection point
+                            fx = xl
+                            fy = yl
+                            # second intersection point
+                            gx = xr
+                            gy = yr
+                        elif m < 0:
+                            fx = xr
+                            fy = yr
+                            gx = xl
+                            gy = yl
                     elif t_int and b_int: #top, bottom
                         fx = xb
                         fy = yb
