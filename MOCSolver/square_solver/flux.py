@@ -1,6 +1,8 @@
 #Alicia M. Elliott, 22.212 Fall 2017
 #Method of Characteristics solver
 #2D pincell, fixed isotropic source in fuel
+#Square geometry (for comparison with SN)
+
 
 import math
 
