@@ -11,11 +11,11 @@ from flux import FlatSourceRegion, MethodOfCharacteristics, ConvergenceTest
 ########## PROBLEM SETUP ##########
 ###################################
 
-num_azim = 512                  #number of azimuthal angles desired
+num_azim = 16                  #number of azimuthal angles desired
 t = 0.05                        #track spacing desired, cm
 h = 1.26                        #height of pincell
 w = 1.26                        #width of pincell
-r = 0.4                         #fuel pin radius
+r = 0.709                       #fuel pin effective radius (width of square fuel pin)
 n_p = 3                         #number of polar divisions; can be 2 or 3
 num_iter_max = 100              #maximum number of iterations on flux
 tol = 1e-10                     #tolerance for convergence (using L2 Engineering Norm)
@@ -89,7 +89,7 @@ setup.getFSRVolumes(fuel, mod)
 ########## PLOTTING ##########
 ##############################
 
-#setup.plotTracks()
+setup.plotTracks()
 #setup.plotTrackLinking()
 #setup.plotSegments()
 
@@ -97,6 +97,6 @@ setup.getFSRVolumes(fuel, mod)
 ########## SOLVE FOR FLUXES ##########
 ######################################
 
-flux = MethodOfCharacteristics(sigma_t_fuel, sigma_t_mod, fsr, setup, check)
-flux.solveFlux(num_iter_max, tol)
+#flux = MethodOfCharacteristics(sigma_t_fuel, sigma_t_mod, fsr, setup, check)
+#flux.solveFlux(num_iter_max, tol)
 

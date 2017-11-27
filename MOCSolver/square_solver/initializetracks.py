@@ -2,6 +2,7 @@
 #Method of Characteristics solver
 #2D pincell, fixed isotropic source in fuel
 #Square geometry (for comparison with SN)
+#note that self.radius is the width of square fuel pin
 
 
 import math
@@ -83,7 +84,8 @@ class InitializeTracks(object):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
-        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        xy = ((self.width/2 - self.radius/2), (self.height/2 - self.radius/2))
+        c = patches.Rectangle(xy, self.radius, self.radius, color='b', fill=True)
         ax1.add_patch(c)
 
         for i in range(self.num_azim2):
@@ -222,7 +224,134 @@ class InitializeTracks(object):
         print "sintheta_p_total = %f\n\n" %(polar_angle_total)
         return self.omega_p, self.sintheta_p
 
+
     def findIntersection(self):
+        self.num_segments = 0  # increments index for storing segments
+        self.intersect1 = [[] for _ in range(self.num_azim2)]
+        self.intersect2 = [[] for _ in range(self.num_azim2)]
+        print "Finding intersection points...\n\n"
+
+        for i in range(self.num_azim2):
+            for j in range(int(self.ntot[i])):
+
+
+                x0, y0 = self.startpoint[i][j]
+                x1, y1 = self.endpoint[i][j]
+                track = self.tracks[i][j]  # reference to object that stores this track
+                raylen = self.lengthTwoPoints(x0, x1, y0, y1)
+
+                m = (y1 - y0) / (x1 - x0)
+
+                cx0 = self.width / 2
+                cy0 = self.height / 2
+                dxy = self.radius / 2
+
+                #find points that intersect the 4 lines that make up the fuel pin
+                #left, right, top, bottom boundaries, respectively
+                xl = cx0 - dxy
+                xr = cx0 + dxy
+                yt = cy0 + dxy
+                yb = cy0 - dxy
+
+                yl = m * (xl - x0) + y0
+                yr = m * (xr - x0) + y0
+                xt = (yt - y0) / m + x0
+                xb = (yb - y0) / m + x0
+
+                b_int = False
+                r_int = False
+                l_int = False
+                t_int = False
+                n_ints = 0
+
+                if ((xb <= xr) and (xb >= xl)):
+                    b_int = True
+                    n_ints += 1
+                    #intersects bottom of fuel
+                if ((xt <= xr) and (xt >= xl)):
+                    t_int = True
+                    n_ints += 1
+                    #intersects top of fuel
+                if ((yl <= yt) and (yl >= yb)):
+                    l_int = True
+                    n_ints += 1
+                    #intersects left
+                if ((yr <= yt) and (yr >= yb)):
+                    r_int = True
+                    n_ints += 1
+                    #intersects right
+
+
+                if n_ints == 2:
+
+                    if l_int and r_int: #left, right
+                        # first intersection point
+                        fx = xr
+                        fy = yr
+                        # second intersection point
+                        gx = xl
+                        gy = yl
+                    elif t_int and b_int: #top, bottom
+                        fx = xb
+                        fy = yb
+
+                        gx = xt
+                        gy = yt
+                    elif l_int and b_int: #left, bottom
+                        fx = xb
+                        fy = yb
+
+                        gx = xl
+                        gy = yl
+                    elif b_int and r_int: #bottom, right
+                        fx = xb
+                        fy = yb
+                        gx = xr
+                        gy = yr
+                    elif r_int and t_int: #right, top
+                        fx = xr
+                        fy = yr
+                        gx = xt
+                        gy = yt
+                    elif l_int and t_int: #left, top
+                        fx = xl
+                        fy = yl
+                        gx = xt
+                        gy = yt
+
+
+                    self.intersect1[i].append((fx, fy))
+                    self.intersect2[i].append((gx, gy))
+
+                    # store first segment: from startpoint to intersect1
+                    s = self.segmentStore(x0, fx, y0, fy, self.num_segments, i, j, 0)
+                    track.segments.append(s)
+
+                    # store second segment: from intersect1 to intersect2
+                    s = self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
+                    track.segments.append(s)
+
+                    # store third segment: from intersect2 to endpoint
+                    s = self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
+                    track.segments.append(s)
+
+                elif n_ints == 1:
+                    print "line is tangent\n"
+                    self.intersect1[i].append(None)
+                    self.intersect2[i].append(None)
+                    # treat as a miss. store whole track as 1 segment.
+                    # later could improve this by calculating the point where it hits, segmenting into 2 at that point
+
+                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    track.segments.append(s)
+                else:
+                    self.intersect1[i].append(None)
+                    self.intersect2[i].append(None)
+                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    track.segments.append(s)
+
+
+    def findCircleIntersection(self):
         self.num_segments=0 #increments index for storing segments
         self.intersect1 = [[] for _ in range(self.num_azim2)]
         self.intersect2 = [[] for _ in range(self.num_azim2)]
