@@ -2,7 +2,7 @@
 #Method of Characteristics solver
 #2D pincell, fixed isotropic source in fuel
 #Square geometry (for comparison with SN)
-#note that self.radius is the width of square fuel pin
+#note that self.radius is the width of square fuel pin / 2
 
 
 import math
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 class InitializeTracks(object):
-    def __init__(self, num_azim, spacing, width, height, num_polar, radius, fsr, num_rings = 0, ring_radii = None):
+    def __init__(self, num_azim, spacing, width, height, num_polar, radius, fsr, geometry = 'circle'):
         """
         This class generates tracks for method of characteristics, and their quadrature (azimuthal and polar).
         """
@@ -22,6 +22,7 @@ class InitializeTracks(object):
         self.n_p = num_polar
         self.radius = radius
         self.fsr = fsr
+        self.geom = geometry
         self.phi = []
         self.nx = []
         self.ny = []
@@ -84,8 +85,11 @@ class InitializeTracks(object):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
-        xy = ((self.width/2 - self.radius/2), (self.height/2 - self.radius/2))
-        c = patches.Rectangle(xy, self.radius, self.radius, color='b', fill=True)
+        if self.geom == 'square':
+            xy = ((self.width/2 - self.radius), (self.height/2 - self.radius))
+            c = patches.Rectangle(xy, self.radius*2, self.radius*2, color='b', fill=True)
+        else:
+            c = patches.Circle((self.width / 2, self.height / 2), self.radius, color='b', fill=True)
         ax1.add_patch(c)
 
         for i in range(self.num_azim2):
@@ -244,7 +248,7 @@ class InitializeTracks(object):
 
                 cx0 = self.width / 2
                 cy0 = self.height / 2
-                dxy = self.radius / 2
+                dxy = self.radius
 
                 #find points that intersect the 4 lines that make up the fuel pin
                 #left, right, top, bottom boundaries, respectively
@@ -533,7 +537,11 @@ class InitializeTracks(object):
                             fuel.area += s.area
 
         est_area = self.width * self.height     #area of pincell
-        est_area_fuel = math.pi * self.radius ** 2
+
+        if self.geom == 'circle':
+            est_area_fuel = math.pi * self.radius ** 2
+        elif self.geom == 'square':
+            est_area_fuel = (self.radius * 2) ** 2
         est_area_mod = est_area - est_area_fuel
         tot_area = fuel.area + mod.area
 
@@ -659,7 +667,11 @@ class InitializeTracks(object):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
-        c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        if self.geom == 'circle':
+            c = patches.Circle((self.width/2, self.height/2), self.radius, color='b', fill=True)
+        elif self.geom == 'square':
+            xy = ((self.width / 2 - self.radius), (self.height / 2 - self.radius))
+            c = patches.Rectangle(xy, self.radius *2, self.radius *2, color='b', fill=True)
         ax1.add_patch(c)
 
         xvals = np.linspace(0, self.width, 100)

@@ -147,6 +147,8 @@ class MethodOfCharacteristics(object):
             flux_old = [fuel.flux, mod.flux]
 
         #normalize fuel flux to 1
+        #fuel.flux /= mod.flux
+       # mod.flux /= mod.flux
         mod.flux /= fuel.flux
         fuel.flux /= fuel.flux
 
@@ -154,7 +156,7 @@ class MethodOfCharacteristics(object):
               "\nFuel = \t\t\t%g \nModerator = \t%g" \
               "\nNumber of iterations: %d" % (fuel.flux, mod.flux, num_iter+1)
 
-        #stp.plotScalarFlux(fuel.flux, mod.flux)
+        stp.plotScalarFlux(fuel.flux, mod.flux)
 
 
 class ConvergenceTest(object):
