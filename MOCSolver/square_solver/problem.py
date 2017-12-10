@@ -15,7 +15,7 @@ import time
 ########## PROBLEM SETUP ##########
 ###################################
 
-num_azim = 16                  #number of azimuthal angles desired
+num_azim =4                  #number of azimuthal angles desired
 t = 0.2                        #track spacing desired, cm
 h = 1.6                        #height of pincell
 w = h                           #width of pincell
@@ -99,30 +99,30 @@ setup = InitializeTracks(num_azim, t, w, h, n_p, r, fsr, fuelgeom)
 setup.getTrackParams()
 setup.makeTracks()
 setup.findAllTrackCellIntersect(mesh.cells, spacing)
-setup.plotCellSegments(spacing, savepath)
+#setup.plotCellSegments(spacing, savepath)
 
-#setup.getAngularQuadrature()
-#setup.getPolarWeight()
-#if fuelgeom == 'square':
-#    setup.findIntersection()
+setup.getAngularQuadrature()
+setup.getPolarWeight()
+if fuelgeom == 'square':
+    setup.findIntersection()
 #else:
 #    setup.findCircleIntersection()
-#setup.reflectRays()
-#setup.getFSRVolumes(fuel, mod)
+setup.reflectRays()
+setup.getFSRVolumes(fuel, mod)
 #setup.getTrackLinkCoords()
 
 ##############################
 ########## PLOTTING ##########
 ##############################
 
-#setup.plotTracks()
-#setup.plotTrackLinking()
+setup.plotTracks(savepath)
+#setup.plotTrackLinking(savepath)
 #setup.plotSegments()
 
 ######################################
 ########## SOLVE FOR FLUXES ##########
 ######################################
 
-#flux = MethodOfCharacteristics(sigma_fuel_tot, sigma_mod_tot, fsr, setup, check)
-#flux.solveFlux(num_iter_max, tol)
+flux = MethodOfCharacteristics(sigma_fuel_tot, sigma_mod_tot, fsr, setup, check, mesh.cells)
+flux.solveFlux(num_iter_max, tol)
 

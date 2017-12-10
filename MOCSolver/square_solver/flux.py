@@ -11,7 +11,7 @@ class MethodOfCharacteristics(object):
     """
     class for calculating angular and scalar flux
     """
-    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup, check):
+    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup, check, cells):
 
         self.sigma_t_fuel = sigma_t_fuel
         self.sigma_t_mod = sigma_t_mod
@@ -20,11 +20,13 @@ class MethodOfCharacteristics(object):
         self.tracks = setup.tracks
         self.check = check
         self.exponential = []
+        self.cells = cells
         #get n_p by self.setup.n_p, numazim2 by self.setup.num_azim2
         #get segments in a track by self.tracks.segments
         #get segments in a region by self.regions.segments
 
     def exponentialTerm(self, length, region, p): #calculates exponential term for a given segment and polar angle
+
         ans = math.exp(-1 * self.segmentXS(region) * length / self.setup.sintheta_p[p])
         return ans
 
@@ -34,28 +36,40 @@ class MethodOfCharacteristics(object):
                 for s in track.segments:
                     for p in range(n_p):
                         region = s.region
-                        if region == 0:  # moderator
+                        if region == 'moderator':
                             q_seg = self.regions[1].source
-                        elif region == 1:  # fuel
+                        elif region == 'fuel':
                             q_seg = self.regions[0].source
+                        else:
+                            print "error here"
                         length = s.length
-                        s.exponential.append(self.exponentialTerm(length, region, p))
+                        try:
+                            s.exponential.append(self.exponentialTerm(length, region, p))
+                        except(UnboundLocalError):
+                            print "segment in cell %d, %d" %(s.cellid_i, s.cellid_j)
+                            raise
+
 
 
     def angularFlux(self, flux_in, s, p): #s = segment
         region = s.region
-        if region == 0: #moderator
+        if region == 'moderator': #moderator
             q_seg = self.regions[1].source
-        elif region == 1: #fuel
+        elif region == 'fuel': #fuel
             q_seg = self.regions[0].source
+        else:
+            print "error"
         delta_psi = (flux_in - q_seg / self.segmentXS(region)) * (1 - s.exponential[p])
         return delta_psi
 
     def segmentXS(self, region):
-        if region == 0:
+        if region == 'moderator':
             sigma_t = self.sigma_t_mod
-        elif region == 1:
+        elif region == 'fuel':
             sigma_t = self.sigma_t_fuel
+        else:
+            print "error"
+            #sigma_t = None
         return sigma_t
 
     def solveFlux(self, num_iter_tot, tol):
@@ -91,9 +105,13 @@ class MethodOfCharacteristics(object):
                             flux -= delta_flux
 
                             #print "region %g \t flux out %.1e \t\t delta flux %.1e" % (region, flux, delta_flux)
-                            if region == 1:
+                            #increment flux in cell this segment crosses
+                            cell = self.cells[s.cellid_i][s.cellid_j]
+                            cell.flux += delta_flux * track.quadwt / 2
+
+                            if region == 'fuel':#1:
                                 fuel.flux += delta_flux * track.quadwt/2
-                            elif region == 0:
+                            elif region == 'moderator': #0:
                                 mod.flux += delta_flux * track.quadwt/2
                             else:
                                 print "Error in scalar flux calculation (forward)"
@@ -110,17 +128,20 @@ class MethodOfCharacteristics(object):
                             delta_flux = self.angularFlux(flux, s, p)
                             flux -= delta_flux
 
+                            cell = self.cells[s.cellid_i][s.cellid_j]
+                            cell.flux += delta_flux * track.quadwt / 2
+
                            # print "region %g \t flux out %.1e \t\t delta flux %.1e" % (region, flux, delta_flux)
-                            if region == 1:
+                            if region == 'fuel':
                                 fuel.flux += delta_flux * track.quadwt/2
-                            elif region == 0:
+                            elif region == 'moderator':
                                 mod.flux += delta_flux * track.quadwt/2
                             else:
                                 print "Error in scalar flux calculation (reverse)"
                         track.track_in.flux_in[track.refl_in, p] = flux
 
-            fuel.flux = 4 * math.pi * fuel.source / self.segmentXS(1) + fuel.flux / (self.segmentXS(1) * fuel.area)
-            mod.flux = 4 * math.pi * mod.source / self.segmentXS(0) + mod.flux / (self.segmentXS(0) * mod.area)
+            fuel.flux = 4 * math.pi * fuel.source / self.segmentXS('fuel') + fuel.flux / (self.segmentXS('fuel') * fuel.area)
+            mod.flux = 4 * math.pi * mod.source / self.segmentXS('moderator') + mod.flux / (self.segmentXS('moderator') * mod.area)
 
             if num_iter == 0:
                 self.dancoff_flux0 = fuel.flux
@@ -132,12 +153,12 @@ class MethodOfCharacteristics(object):
 
                 if converged:
                     print "\nNumber of iterations to convergence: %d" % (num_iter+1)
-                    dancoff = self.check.computeDancoff(self.dancoff_flux0, fuel.flux, fuel.source,  self.segmentXS(1))
+                    dancoff = self.check.computeDancoff(self.dancoff_flux0, fuel.flux, fuel.source,  self.segmentXS('fuel'))
                     print "Dancoff factor: %f" %(dancoff)
                 elif num_iter >= num_iter_tot:
                     print "Total number of iterations reached before convergence. Break."
                     converged = True
-                    dancoff = self.check.computeDancoff(self.dancoff_flux0, fuel.flux, fuel.source, self.segmentXS(1))
+                    dancoff = self.check.computeDancoff(self.dancoff_flux0, fuel.flux, fuel.source, self.segmentXS('fuel'))
                     print "Dancoff factor: %f" % (dancoff)
                 else:
                     num_iter +=1

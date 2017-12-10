@@ -82,7 +82,7 @@ class InitializeTracks(object):
                                         self.phi_eff[self.num_azim2//2+i])
                 self.tracks[self.num_azim2//2+i].append(thisTrack)
 
-    def plotTracks(self):
+    def plotTracks(self, savepath):
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(111, aspect='equal')
         plt.axis([0, self.width, 0, self.height])
@@ -128,7 +128,7 @@ class InitializeTracks(object):
                     plt.plot(xi2, yi2, 'go')
 
         print "plotting tracks..."
-        plt.show()
+        plt.savefig(savepath + '/tracks.png')
 
     def getTrackParams(self):
         print "\n------------------\nInput parameters:\n------------------"
@@ -335,16 +335,16 @@ class InitializeTracks(object):
                     self.intersect2[i].append((gx, gy))
 
                     # store first segment: from startpoint to intersect1
-                    s = self.segmentStore(x0, fx, y0, fy, i, j, 0)
-                    track.segments.append(s)
+                    #s = self.segmentStore(x0, fx, y0, fy, i, j, 0)
+                    #track.segments.append(s)
 
                     # store second segment: from intersect1 to intersect2
-                    s = self.segmentStore(fx, gx, fy, gy, i, j, 1)
-                    track.segments.append(s)
+                    #s = self.segmentStore(fx, gx, fy, gy, i, j, 1)
+                    #track.segments.append(s)
 
                     # store third segment: from intersect2 to endpoint
-                    s = self.segmentStore(gx, x1, gy, y1, i, j, 0)
-                    track.segments.append(s)
+                    #s = self.segmentStore(gx, x1, gy, y1, i, j, 0)
+                    #track.segments.append(s)
 
                 elif n_ints == 1:
                     print "line is tangent\n"
@@ -353,13 +353,13 @@ class InitializeTracks(object):
                     # treat as a miss. store whole track as 1 segment.
                     # later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
-                    track.segments.append(s)
+                    #s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
+                    #track.segments.append(s)
                 else:
                     self.intersect1[i].append(None)
                     self.intersect2[i].append(None)
-                    s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
-                    track.segments.append(s)
+                    #s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
+                    #track.segments.append(s)
 
     def findCircleIntersection(self):
         self.num_segments=0 #increments index for storing segments
@@ -437,7 +437,7 @@ class InitializeTracks(object):
     def segmentStore(self, x1, x2, y1, y2, i, j, region):
         start = (x1, y1)
         end = (x2,y2)
-        newSeg = SingleSegment(start, end, region, self.lengthTwoPoints(x1, x2, y1, y2))
+        newSeg = SingleSegment(start, end, region, self.lengthTwoPoints(x1, x2, y1, y2), i, j)
         return newSeg
 
     def findMeshCellIntersectY(self, x0, y0, xi, m):
@@ -461,18 +461,16 @@ class InitializeTracks(object):
         if x_s == self.width:
             print "pincell edge reached"
             i -=1
-        #elif track.slope < 0.0 and i > 0 and round(xnewcomp,2) == 0:
-        #    i -=1
 
         #next intersection will be at x_int = dmesh * (i+1) or y_int
         if not(track.slope < 0.0):
-            print "slope is positive"
+            #print "slope is positive"
             x_int = dmesh * (i+1)
 
             y_int = dmesh * (j+1)
 
         else:
-            print "slope is negative"
+            #print "slope is negative"
             x_int = dmesh * (i)
 
             if x_int <0.0:
@@ -491,15 +489,9 @@ class InitializeTracks(object):
         for i in reversed(range(self.num_azim2)):
             for j in range(int(self.ntot[i])):
                 track = self.tracks[i][j]  # reference to object that stores this track
-
                 x0, y0 = track.start_coords
                 x1, y1 = track.end_coords
-
-
                 track.slope = (y1 - y0) / (x1 - x0)
-
-                if round(x0,1) == (0.2) and track.slope > 0.0 and round(y0,1) == 0.0:
-                    print "here"
 
                 on_same_track = True
                 x_out = x0
@@ -518,9 +510,8 @@ class InitializeTracks(object):
                 next_j = int(math.floor(y_out / dmesh))
                 iterat = 0
                 while on_same_track:
-                    iterat+=1
                     print "tracking across cell...\n"
-                    print "coords in: (%g, %g)" %(x_out, y_out)
+                    #print "coords in: (%g, %g)" %(x_out, y_out)
 
                     next_i, next_j, x_out, y_out = self.findSingleTrackCellIntersect(track, dmesh, cells, x_out, y_out, next_i , next_j)
                     comparison = np.isclose([x_out, y_out],[x1, y1],rtol=1e-03, atol=1e-04)
@@ -533,9 +524,6 @@ class InitializeTracks(object):
                         on_same_track = False
                         print "end of track reached (i or jmax reached)\n %d segments total\n\n" %(seg)
                         seg=0
-                    elif iterat >= 100:
-                        on_same_track = False
-                        print "Max iterations reached!"
                     else:
                         print "next cell: %g, %g\n" %(next_i, next_j)
                         seg+=1
@@ -545,7 +533,7 @@ class InitializeTracks(object):
 
         # get next intersect with x, y mesh divisions
         i, j, xint, ycalc, xcalc, yint = self.findMeshCellID(track, dmesh, xi, yi, next_i, next_j)
-        print "i: %d \tj: %d\nxint: %g\tycalc: %g\nxcalc: %g \tyint: %g" %(i, j, xint, ycalc, xcalc, yint)
+        #print "i: %d \tj: %d\nxint: %g\tycalc: %g\nxcalc: %g \tyint: %g" %(i, j, xint, ycalc, xcalc, yint)
 
         xcalc = round(xcalc, 2)
         ycalc = round(ycalc, 2)
@@ -562,16 +550,16 @@ class InitializeTracks(object):
             t_calc = np.isclose([ycalc], [cell.yt])
             if r_int and t_int and r_calc and t_calc:
                 #out top right corner
-                print "top right corner"
+                #print "top right corner"
                 next_cell = (i+1, j+1)
                 intcept_coords = (xint, ycalc)
             elif xcalc > cell.xr:
-                print "right"
+                #print "right"
                 #out right edge
                 next_cell = (i+1,j)
                 intcept_coords = (xint, ycalc)
             elif ycalc > cell.yt:
-                print "top"
+                #print "top"
                 next_cell = (i, j+1)
                 intcept_coords = (xcalc, yint)
             else:
@@ -588,25 +576,25 @@ class InitializeTracks(object):
 
             if l_int and t_int and l_calc and t_calc:
                 # out top left corner
-                print "corner"
+                #print "corner"
                 next_cell = (i - 1, j + 1)
                 intcept_coords = (xint, ycalc)
             elif xcalc < cell.xl:
-                print "Cell.xl = %g" %(cell.xl)
-                print "left"
+                #print "Cell.xl = %g" %(cell.xl)
+                #print "left"
                 # out left edge
                 next_cell = (i- 1, j)
                 intcept_coords = (xint, ycalc)
             elif ycalc > cell.yt:
-                print "top"
+                #print "top"
                 print
                 next_cell = (i, j + 1)
                 intcept_coords = (xcalc, yint)
             else:
                 print "WARNING: error in track segmenting routine (bwd) \n\n"
-        print "coords out: (%g, %g)" %(intcept_coords[0], intcept_coords[1])
-        if xi == intcept_coords[0] or yi == intcept_coords[1]:
-            print "look here for error!!!"
+        #print "coords out: (%g, %g)" %(intcept_coords[0], intcept_coords[1])
+        #if xi == intcept_coords[0] or yi == intcept_coords[1]:
+        #    print "look here for error!!!"
 
         s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region)
         print "segment created for i %d j %d, region %s" %(i, j, cell.region)
@@ -747,9 +735,9 @@ class InitializeTracks(object):
                         quadweight = self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]
                         s.area = quadweight * s.length
                         area += s.area
-                        if s.region == 0:
+                        if s.region == 'moderator':
                             mod.area += s.area
-                        elif s.region == 1:
+                        elif s.region == 'fuel':
                             fuel.area += s.area
 
         est_area = self.width * self.height     #area of pincell
@@ -774,10 +762,10 @@ class InitializeTracks(object):
         for i in range(self.num_azim2):  # loop over all angles
             for track in self.tracks[i]:  # loop over all tracks
                 for s in track.segments:  # loop over all segments
-                    if s.region == 0:
+                    if s.region == 'moderator':
                         s.length *= corr_mod
 
-                    elif s.region == 1:
+                    elif s.region == 'fuel':
                         s.length *= corr_fuel
 
         fuel.area = est_area_fuel
@@ -817,7 +805,7 @@ class InitializeTracks(object):
         #print "Boundary ID for point (%.4f, %.4f): \t %d" %(x,y,boundary_id)
         return boundary_id
 
-    def plotTrackLinking(self):
+    def plotTrackLinking(self, savepath):
 
         plt.figure(figsize=(12,9))
         fwd = True
@@ -841,7 +829,7 @@ class InitializeTracks(object):
             plt.xlim([0, self.width])
             plt.ylim([0, self.height])
         #plt.tight_layout()
-        plt.show()
+        plt.savefig(savepath + '/track_linking.png')
         #plt.savefig('connecting_tracks.png')
         #plt.close()
 
@@ -939,10 +927,12 @@ class SingleTrack(object):
 
 
 class SingleSegment(object):
-    def __init__(self, start_coords, end_coords, region, length):
+    def __init__(self, start_coords, end_coords, region, length, i, j):
 
         self.start_coords = start_coords
         self.end_coords = end_coords
         self.region = region
         self.length = length
         self.exponential = []
+        self.cellid_i = i
+        self.cellid_j = j
