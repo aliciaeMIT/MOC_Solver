@@ -439,12 +439,12 @@ class InitializeTracks(object):
         newSeg = SingleSegment(start, end, region, self.lengthTwoPoints(x1, x2, y1, y2))
         return newSeg
 
-    def findMeshCellIntersectY(self, x0, y0, x1, y1, xi, m):
+    def findMeshCellIntersectY(self, x0, y0, xi, m):
         #m = (y1 - y0) / (x1 - x0)
         yi = m * (xi - x0) + y0
         return yi
 
-    def findMeshCellIntersectX(self, x0, y0, x1, y1, yi, m):
+    def findMeshCellIntersectX(self, x0, y0, yi, m):
         #m = (y1 - y0) / (x1 - x0)
         xi = x0 + (yi - y0)/ m
         return xi
@@ -454,21 +454,30 @@ class InitializeTracks(object):
         x1, y1 = track.end_coords
         #find i, j for cell the track is crossing
         i = math.floor(x_s / dmesh)
+        print "i : %g" %(i)
+        if x_s == self.width:
+            print "pincell edge reached"
+            i -=1
 
         j = math.floor(y_s / dmesh)
+        if y_s == self.height:
+            print "pincell edge reached"
+            i -= 1
 
         #compare = np.isclose([x1, y1], [x_s, y_s])
 
         #next intersection will be at x_int = dmesh * (i+1) or y_int
         if not(track.slope < 0):
+            print "slope is positive"
             x_int = dmesh * (i+1)
             y_int = dmesh * (j+1)
         else:
+            print "slope is negative"
             x_int = dmesh * (i-1)
             y_int = dmesh * (j+1)
 
-        y_calc = self.findMeshCellIntersectY(x0, y0, x1, y1, x_int, track.slope)
-        x_calc = self.findMeshCellIntersectX(x0, y0, x1, y1, y_int, track.slope)
+        y_calc = self.findMeshCellIntersectY(x0, y0, x_int, track.slope)
+        x_calc = self.findMeshCellIntersectX(x0, y0, y_int, track.slope)
 
         return int(i), int(j), x_int, y_calc, x_calc, y_int
 
@@ -484,11 +493,7 @@ class InitializeTracks(object):
                 x1, y1 = track.end_coords
 
                 track.slope = (y1 - y0) / (x1 - x0)
-                """
-                if track.slope < 0:
-                    x0, y0 = track.end_coords
-                    x1, y1 = track.start_coords
-                """
+            
                 on_same_track = True
                 x_out = x0
                 y_out = y0
@@ -515,6 +520,7 @@ class InitializeTracks(object):
 
         # get next intersect with x, y mesh divisions
         i, j, xint, ycalc, xcalc, yint = self.findMeshCellID(track, dmesh, xi, yi)
+        print "i: %d \tj: %d\nxint: %g\tycalc: %g\nxcalc: %g \tyint: %g\n" %(i, j, xint, ycalc, xcalc, yint)
 
         imax = int(math.floor(self.height / dmesh))
 
@@ -527,8 +533,9 @@ class InitializeTracks(object):
             cell = cells[i][j]
 
             xdist = self.lengthTwoPoints(xi, xint, yi, ycalc)
+            print "xdist: %g" %(xdist)
             ydist = self.lengthTwoPoints(xi, xcalc, yi, yint)
-
+            print "ydist: %g" %(ydist)
             comparison = np.isclose([xdist],[ydist])
 
             #endcomp = np.isclose([])
@@ -553,9 +560,11 @@ class InitializeTracks(object):
                 if track.slope < 0:
                     next_cell = (i-1, j+1)
                     intcept_coords = (xint, ycalc)
-                else:
+                elif track.slope > 0:
                     next_cell = (i + 1, j + 1)
                     intcept_coords = (xint, ycalc)
+                else:
+                    print "error with tracking to top left corner"
             else:
                 next_cell = (None, None)
                 intcept_coords = (None, None)
