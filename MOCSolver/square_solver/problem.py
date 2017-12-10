@@ -15,7 +15,7 @@ import time
 ########## PROBLEM SETUP ##########
 ###################################
 
-num_azim = 8                  #number of azimuthal angles desired
+num_azim = 16                  #number of azimuthal angles desired
 t = 0.2                        #track spacing desired, cm
 h = 1.6                        #height of pincell
 w = h                           #width of pincell

@@ -8,6 +8,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from decimal import Decimal
 
 
 class InitializeTracks(object):
@@ -440,46 +441,72 @@ class InitializeTracks(object):
         return newSeg
 
     def findMeshCellIntersectY(self, x0, y0, xi, m):
-        #m = (y1 - y0) / (x1 - x0)
         yi = m * (xi - x0) + y0
         return yi
 
     def findMeshCellIntersectX(self, x0, y0, yi, m):
-        #m = (y1 - y0) / (x1 - x0)
         xi = x0 + (yi - y0)/ m
         return xi
 
-    def findMeshCellID(self, track, dmesh, x_s, y_s):
+    def findMeshCellID(self, track, dmesh, x_s, y_s, ii, jj):
         x0, y0 = track.start_coords
         x1, y1 = track.end_coords
         #find i, j for cell the track is crossing
-        i = math.floor(x_s / dmesh)
-        print "i : %g" %(i)
+        #i = int(math.floor(x_s / dmesh))
+        #j = int(math.floor(y_s / dmesh))
+
+        i = ii
+        j = jj
+
+        xcomp = np.isclose([round(x_s%dmesh,2)], [0])
+        xnewcomp = self.modulusCorrection(x_s, dmesh)
+
         if x_s == self.width:
             print "pincell edge reached"
             i -=1
+        elif track.slope < 0.0 and i > 0 and round(xnewcomp,2) == 0:
+            i -=1
+        #elif track.slope > 0.0 and i > 0 and round(xnewcomp,8) == 0:
+        #    i +=1
+        """
+        elif track.slope > 0.0 and i > 0 and x_s%dmesh == 0:
+            i +=0
+        elif track.slope > 0.0 and y_s%dmesh == 0:
+            j +=1
 
-        j = math.floor(y_s / dmesh)
-        if y_s == self.height:
-            print "pincell edge reached"
-            i -= 1
+        comp_ij = np.isclose([i, j], [ii, jj])
+        if comp_ij[0] and comp_ij[1]:
+            print "same i, j given as calculated."
+        else:
+            print "i, j given and calculated differ!!!!!!!!!!!!!! LOOK HERE"
+
+        #if y_s == self.height:
+        #    print "pincell edge reached"
+        #    i -= 1
 
         #compare = np.isclose([x1, y1], [x_s, y_s])
-
+        """
         #next intersection will be at x_int = dmesh * (i+1) or y_int
-        if not(track.slope < 0):
+        if not(track.slope < 0.0):
             print "slope is positive"
             x_int = dmesh * (i+1)
+            print "finding x for %d" %(i+1)
             y_int = dmesh * (j+1)
+            print "finding y for %d" %(j+1)
         else:
             print "slope is negative"
-            x_int = dmesh * (i-1)
+            x_int = dmesh * (i)
+            print "finding x for %d" %(i)
+            if x_int <0.0:
+                x_int =0
             y_int = dmesh * (j+1)
+            print "finding y for %d" % (j + 1)
+
 
         y_calc = self.findMeshCellIntersectY(x0, y0, x_int, track.slope)
         x_calc = self.findMeshCellIntersectX(x0, y0, y_int, track.slope)
 
-        return int(i), int(j), x_int, y_calc, x_calc, y_int
+        return i, j, x_int, y_calc, x_calc, y_int
 
     def findAllTrackCellIntersect(self, cells, dmesh):
 
@@ -492,55 +519,160 @@ class InitializeTracks(object):
                 x0, y0 = track.start_coords
                 x1, y1 = track.end_coords
 
+
                 track.slope = (y1 - y0) / (x1 - x0)
-            
+
+                if round(x0,1) == (0.2) and track.slope > 0.0 and round(y0,1) == 0.0:
+                    print "here"
+
                 on_same_track = True
                 x_out = x0
                 y_out = y0
 
                 imax = int(math.floor(self.height / dmesh))
-
+                seg = 1
+                next_i = int(math.floor(x_out / dmesh))
+                if x0 > 0.0 and round(self.modulusCorrection(round(x0,2), dmesh),2) == 0.0:
+                    if track.slope > 0.0:
+                        next_i = int(math.floor(x_out / dmesh))
+                        if round(x0,2) == dmesh or round(x0-1,2) == dmesh:
+                            next_i = int(math.floor(round(x0,2) / dmesh))
+                    elif track.slope < 0.0:
+                        next_i = int(math.floor(x_out / dmesh)-1)
+                next_j = int(math.floor(y_out / dmesh))
+                iterat = 0
                 while on_same_track:
+                    iterat+=1
                     print "tracking across cell...\n"
                     print "coords in: (%g, %g)" %(x_out, y_out)
-                    next_i, next_j, x_out, y_out = self.findSingleTrackCellIntersect(track, dmesh, cells, x_out, y_out)
+
+                    """
+                    modcheck = round(x_out % dmesh, 5)
+                    print "mod(i) = %g" % modcheck
+                    mody = round(y_out % dmesh, 5)
+                    if track.slope < 0.0 and next_i > 0.0 and modcheck == 0:
+                        next_i -= 0
+                    elif track.slope > 0.0 and mody == 0:
+                        next_j +=1
+                    """
+                    next_i, next_j, x_out, y_out = self.findSingleTrackCellIntersect(track, dmesh, cells, x_out, y_out, next_i , next_j)
                     comparison = np.isclose([x_out, y_out],[x1, y1],rtol=1e-03, atol=1e-04)
-                    if (comparison[0] and comparison[1]) or (x_out > self.height or y_out > self.height) or (x_out <= 0.0 or y_out <= 0.0):
+                    if (comparison[0] and comparison[1]) or (x_out >= self.height or y_out >= self.height) or (x_out <= 0.0 or y_out <= 0.0):
                         #track end coordinates reached
                         on_same_track = False
-                        print "end of track reached!\n"
+                        print "end of track reached!\n %d segments total\n\n" %(seg)
+                        seg=0
                     elif next_i >= imax or next_j >= imax or next_i < 0 or next_j < 0:
                         on_same_track = False
-                        print "end of track reached (i or jmax reached)\n"
+                        print "end of track reached (i or jmax reached)\n %d segments total\n\n" %(seg)
+                        seg=0
+                    elif iterat >= 100:
+                        on_same_track = False
+                        print "Max iterations reached!"
                     else:
                         print "next cell: %g, %g\n" %(next_i, next_j)
+                        seg+=1
 
 
-    def findSingleTrackCellIntersect(self, track, dmesh, cells, xi, yi):
+    def findSingleTrackCellIntersect(self, track, dmesh, cells, xi, yi, next_i, next_j):
 
         # get next intersect with x, y mesh divisions
-        i, j, xint, ycalc, xcalc, yint = self.findMeshCellID(track, dmesh, xi, yi)
-        print "i: %d \tj: %d\nxint: %g\tycalc: %g\nxcalc: %g \tyint: %g\n" %(i, j, xint, ycalc, xcalc, yint)
+        i, j, xint, ycalc, xcalc, yint = self.findMeshCellID(track, dmesh, xi, yi, next_i, next_j)
+        print "i: %d \tj: %d\nxint: %g\tycalc: %g\nxcalc: %g \tyint: %g" %(i, j, xint, ycalc, xcalc, yint)
 
         imax = int(math.floor(self.height / dmesh))
+        modtest = round(xi % dmesh, 5)
+        xcalc = round(xcalc, 2)
+        ycalc = round(ycalc, 2)
 
+
+        """
+        debugging
         if i >= imax or j >= imax or i <0 or j<0:
             print "i: %d \t j: %d \tError: index greater than endpoint calculated. "%(i,j)
-            print "xint, %g \tycalc, %g \txcalc, %g \tyint: %g\n "%(xint, ycalc, xcalc, yint)
+            print "xint, %g \tycalc, %g \txcalc, %g \tyint: %g "%(xint, ycalc, xcalc, yint)
 
             return i, j, 0, 0
-        else:
-            cell = cells[i][j]
+            """
+        #else:
+        cell = cells[i][j]
 
-            xdist = self.lengthTwoPoints(xi, xint, yi, ycalc)
-            print "xdist: %g" %(xdist)
-            ydist = self.lengthTwoPoints(xi, xcalc, yi, yint)
-            print "ydist: %g" %(ydist)
-            comparison = np.isclose([xdist],[ydist])
+        if track.slope > 0.0:
+            #forward tracks
+            #can only come in from left, bottom, and bot L corner
+            #can only exit through top, right, and top R corner
+            r_int = np.isclose([xint],[cell.xr])
+            r_calc = np.isclose([xcalc], [cell.xr])
+            t_int = np.isclose([yint], [cell.yt])
+            t_calc = np.isclose([ycalc], [cell.yt])
+            if r_int and t_int and r_calc and t_calc:
+                #out top right corner
+                print "top right corner"
+                next_cell = (i+1, j+1)
+                intcept_coords = (xint, ycalc)
+            elif xcalc > cell.xr:
+                print "right"
+                #out right edge
+                next_cell = (i+1,j)
+                intcept_coords = (xint, ycalc)
+            elif ycalc > cell.yt:
+                print "top"
+                next_cell = (i, j+1)
+                intcept_coords = (xcalc, yint)
+            else:
+                print "WARNING: error in track segmenting routine (fwd) \n\n"
 
-            #endcomp = np.isclose([])
+        elif track.slope < 0.0:
+            #backward tracks
+            # can only come in from right, bottom, and bot R corner
+            # can only exit through top, left, and top L corner
+            l_int = np.isclose([xint], [cell.xl])
+            l_calc = np.isclose([xcalc],[cell.xl])
+            t_int = np.isclose([yint], [cell.yt])
+            t_calc = np.isclose([ycalc], [cell.yt])
 
-            if xdist < ydist:
+            if l_int and t_int and l_calc and t_calc:
+                # out top left corner
+                print "corner"
+                next_cell = (i - 1, j + 1)
+                intcept_coords = (xint, ycalc)
+            elif xcalc < cell.xl:
+                print "Cell.xl = %g" %(cell.xl)
+                print "left"
+                # out left edge
+                next_cell = (i- 1, j)
+                intcept_coords = (xint, ycalc)
+            elif ycalc > cell.yt:
+                print "top"
+                print
+                next_cell = (i, j + 1)
+                intcept_coords = (xcalc, yint)
+            else:
+                print "WARNING: error in track segmenting routine (bwd) \n\n"
+        print "coords out: (%g, %g)" %(intcept_coords[0], intcept_coords[1])
+        if xi == intcept_coords[0] or yi == intcept_coords[1]:
+            print "look here for error!!!"
+
+
+        """
+        xdist = self.lengthTwoPoints(xi, xint, yi, ycalc)
+
+        ydist = self.lengthTwoPoints(xi, xcalc, yi, yint)
+
+        #comparison = np.isclose([xdist],[ydist], rtol=1e-3, atol=1e-3)
+        comparison = np.isclose([xdist], [ydist])
+        trivial = np.isclose([xi, yi, xi, yi], [xint, ycalc, xcalc, yint])
+        #if 0, 1 are true, xdist found trivial solution. if 2, 3 are true, ydist is trivial solution.
+        if trivial[0] and trivial[1]:
+            xdist = 1
+        elif trivial[2] and trivial[3]:
+            ydist = 1
+
+        print "xdist: %g\tydist: %g\n" % (xdist, ydist)
+
+        if xdist < ydist:
+            if not ydist == 1:
+                print "right or left edge\n"
                 #right or left
                 if track.slope < 0:
                     next_cell = (i-1, j)
@@ -548,34 +680,49 @@ class InitializeTracks(object):
                 else:
                     next_cell = (i+1, j)
                     intcept_coords = (xint, ycalc)
-            elif ydist < xdist:
-                #top or bottom
-                if track.slope < 0:
-                    next_cell = (i, j+1)
-                else:
-                    next_cell = (i, j+1)
-                intcept_coords = (xcalc, yint)
-            elif comparison[0]:
+            elif ydist == 1:
+                print "thru corner - FOUND TRIVIAL SOLUTION\n"
                 # top right or left
                 if track.slope < 0:
-                    next_cell = (i-1, j+1)
+                    next_cell = (i - 1, j + 1)
                     intcept_coords = (xint, ycalc)
                 elif track.slope > 0:
                     next_cell = (i + 1, j + 1)
                     intcept_coords = (xint, ycalc)
                 else:
                     print "error with tracking to top left corner"
+        elif ydist < xdist:
+            print "top or bottom edge\n"
+            #top or bottom
+            if track.slope < 0:
+                next_cell = (i, j+1)
             else:
-                next_cell = (None, None)
-                intcept_coords = (None, None)
-                print "Check findSingleTrackCellIntersect method. No next cell found."
+                next_cell = (i, j+1)
+            intcept_coords = (xcalc, yint)
+        elif comparison[0]:
+            print "thru corner\n"
+            # top right or left
+            if track.slope < 0:
+                next_cell = (i-1, j+1)
+                intcept_coords = (xint, ycalc)
+            elif track.slope > 0:
+                next_cell = (i + 1, j + 1)
+                intcept_coords = (xint, ycalc)
+            else:
+                print "error with tracking to top left corner"
+        else:
+            print "comparison[0] == %s" %(comparison[0])
+            next_cell = (None, None)
+            intcept_coords = (None, None)
+            print "Check findSingleTrackCellIntersect method. No next cell found."
+        """
 
+        s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region)
+        print "segment created for i %d j %d, region %s" %(i, j, cell.region)
+        cell.segments.append(s)
+        track.segments.append(s)
 
-            s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region)
-            cell.segments.append(s)
-            track.segments.append(s)
-
-            return next_cell[0], next_cell[1], intcept_coords[0], intcept_coords[1]
+        return next_cell[0], next_cell[1], intcept_coords[0], intcept_coords[1]
 
     def plotCellSegments(self, dmesh, savepath):
         fig1 = plt.figure()
@@ -591,16 +738,17 @@ class InitializeTracks(object):
 
         for i in range(self.num_azim2):
             for j, track in enumerate(self.tracks[i]):
+                track.j = j
                 for s in track.segments:
                     x1, y1 = s.start_coords
                     x2, y2 = s.end_coords
 
                     if x1 == x2:
-                        print "Error! X values are equal for i = %d, j = %d" %(i,j)
+                        print "Error! X values are equal for i = %d, j = %d" %(i,track.j)
                         print "x1 = %f \t x2 = %f" %(x1, x2)
 
                     if y1 == y2:
-                        print "Error! y values are equal for i= %d, j = %f" %(i,j)
+                        print "Error! y values are equal for i= %d, j = %f" %(i,track.j)
                         print "y1 = %f \t y2 = %f" %(y1, y2)
 
                     xvals = [x1, x2]
@@ -610,7 +758,7 @@ class InitializeTracks(object):
                         #plt.plot(xvals, yvals)
                         plt.plot(xvals, yvals, 'm')
                     elif s.region == 'fuel':
-                        plt.plot(xvals, yvals, 'c')
+                        plt.plot(xvals, yvals, 'c--')
                     else:
                         print "Error: segment region not set"
 
@@ -875,6 +1023,11 @@ class InitializeTracks(object):
         #plt.show()
 
 
+    def modulusCorrection(self, xi, dmesh):
+        div = xi / dmesh
+        intdiv = int(div)
+        rem = div - intdiv
+        return rem
 
 
 class SingleTrack(object):
@@ -891,6 +1044,7 @@ class SingleTrack(object):
         self.segments = []
         self.flux_in = np.zeros((2,3))
         self.slope = 0
+        self.j=0
 
 
 class SingleSegment(object):
