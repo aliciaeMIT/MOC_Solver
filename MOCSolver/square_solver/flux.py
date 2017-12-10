@@ -206,19 +206,3 @@ class ConvergenceTest(object):
         const = 4 * math.pi * source / xs
         return 1 - (const - phi_fin)/ (const - phi_1)
 
-
-class FlatSourceRegion(object):
-    def __init__(self, source, xs):
-
-        """
-        This class generates the source for each flat source (and updates it, if not constant isotropic)
-        """
-        self.volume = 0
-        self.area = 0
-        self.flux = 0
-        self.source = source
-        self.sigma = xs
-        #self.segments = []
-
-    def dancoffFlux(self, dflux):
-        pass

@@ -4,11 +4,11 @@
 #Square geometry (for comparison with SN)
 #note that self.radius is the width of square fuel pin / 2
 
-
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+
 
 class InitializeTracks(object):
     def __init__(self, num_azim, spacing, width, height, num_polar, radius, fsr, geometry = 'circle'):
@@ -334,15 +334,15 @@ class InitializeTracks(object):
                     self.intersect2[i].append((gx, gy))
 
                     # store first segment: from startpoint to intersect1
-                    s = self.segmentStore(x0, fx, y0, fy, self.num_segments, i, j, 0)
+                    s = self.segmentStore(x0, fx, y0, fy, i, j, 0)
                     track.segments.append(s)
 
                     # store second segment: from intersect1 to intersect2
-                    s = self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
+                    s = self.segmentStore(fx, gx, fy, gy, i, j, 1)
                     track.segments.append(s)
 
                     # store third segment: from intersect2 to endpoint
-                    s = self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
+                    s = self.segmentStore(gx, x1, gy, y1, i, j, 0)
                     track.segments.append(s)
 
                 elif n_ints == 1:
@@ -352,14 +352,13 @@ class InitializeTracks(object):
                     # treat as a miss. store whole track as 1 segment.
                     # later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
                     track.segments.append(s)
                 else:
                     self.intersect1[i].append(None)
                     self.intersect2[i].append(None)
-                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
                     track.segments.append(s)
-
 
     def findCircleIntersection(self):
         self.num_segments=0 #increments index for storing segments
@@ -396,7 +395,7 @@ class InitializeTracks(object):
                     self.intersect1[i].append((fx, fy))
 
                     #store first segment: from startpoint to intersect1
-                    s = self.segmentStore(x0,fx, y0, fy, self.num_segments, i, j, 0)
+                    s = self.segmentStore(x0,fx, y0, fy, i, j, 0)
                     track.segments.append(s)
 
                     #second intersection point
@@ -405,11 +404,11 @@ class InitializeTracks(object):
                     self.intersect2[i].append((gx, gy))
 
                     #store second segment: from intersect1 to intersect2
-                    s = self.segmentStore(fx, gx, fy, gy, self.num_segments, i, j, 1)
+                    s = self.segmentStore(fx, gx, fy, gy, i, j, 1)
                     track.segments.append(s)
 
                     #store third segment: from intersect2 to endpoint
-                    s = self.segmentStore(gx, x1, gy, y1, self.num_segments, i, j, 0)
+                    s = self.segmentStore(gx, x1, gy, y1, i, j, 0)
                     track.segments.append(s)
 
                 elif dist_center == self.radius:
@@ -419,14 +418,14 @@ class InitializeTracks(object):
                     #treat as a miss. store whole track as 1 segment.
                     #later could improve this by calculating the point where it hits, segmenting into 2 at that point
 
-                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
                     track.segments.append(s)
 
                     #point e is tangent to circle; brushes but does not enter.
                 else:
                     self.intersect1[i].append(None)
                     self.intersect2[i].append(None)
-                    s = self.segmentStore(x0, x1, y0, y1, self.num_segments, i, j, 0)
+                    s = self.segmentStore(x0, x1, y0, y1, i, j, 0)
                     track.segments.append(s)
 
     def lengthTwoPoints(self, x1, x2, y1, y2):
@@ -434,11 +433,204 @@ class InitializeTracks(object):
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
         return length
 
-    def segmentStore(self, x1, x2, y1, y2, k, i, j, q):
+    def segmentStore(self, x1, x2, y1, y2, i, j, region):
         start = (x1, y1)
         end = (x2,y2)
-        newSeg = SingleSegment(start, end, q, self.lengthTwoPoints(x1, x2, y1, y2))
+        newSeg = SingleSegment(start, end, region, self.lengthTwoPoints(x1, x2, y1, y2))
         return newSeg
+
+    def findMeshCellIntersectY(self, x0, y0, x1, y1, xi, m):
+        #m = (y1 - y0) / (x1 - x0)
+        yi = m * (xi - x0) + y0
+        return yi
+
+    def findMeshCellIntersectX(self, x0, y0, x1, y1, yi, m):
+        #m = (y1 - y0) / (x1 - x0)
+        xi = x0 + (yi - y0)/ m
+        return xi
+
+    def findMeshCellID(self, track, dmesh, x_s, y_s):
+        x0, y0 = track.start_coords
+        x1, y1 = track.end_coords
+        #find i, j for cell the track is crossing
+        i = math.floor(x_s / dmesh)
+        j = math.floor(y_s / dmesh)
+
+        compare = np.isclose([x1, y1], [x_s, y_s])
+
+
+        #next intersection will be at x_int = dmesh * (i+1) or y_int
+        x_int = dmesh * (i+1)
+        y_int = dmesh * (j+1)
+
+        y_calc = self.findMeshCellIntersectY(x0, y0, x1, y1, x_int, track.slope)
+        x_calc = self.findMeshCellIntersectX(x0, y0, x1, y1, y_int, track.slope)
+
+        return int(i), int(j), x_int, y_calc, x_calc, y_int
+
+    def findAllTrackCellIntersect(self, cells, dmesh):
+        #num_segments = 0  # increments index for storing segments
+        #intersect1 = [[] for _ in range(self.num_azim2)]
+        #intersect2 = [[] for _ in range(self.num_azim2)]
+        print "Finding intersection points of tracks with mesh cells...\n\n"
+
+        for i in [0]:#range(self.num_azim2):
+            for j in range(int(self.ntot[i])):
+                track = self.tracks[i][j]  # reference to object that stores this track
+
+                x0, y0 = track.start_coords
+                x1, y1 = track.end_coords
+
+                track.slope = (y1 - y0) / (x1 - x0)
+
+                # find i, j for cell where track originates
+                #i_orig = math.floor(x0 / dmesh)
+                #j_orig = math.floor(y0 / dmesh)
+                on_same_track = True
+                x_out = x0
+                y_out = y0
+
+                imax = int(math.floor(self.height / dmesh))
+
+                while on_same_track:
+                    print "tracking across cell...\n"
+                    print "coords in: (%g, %g)" %(x_out, y_out)
+                    next_i, next_j, x_out, y_out = self.findSingleTrackCellIntersect(track, dmesh, cells, x_out, y_out)
+                    comparison = np.isclose([x_out, y_out],[x1, y1],rtol=1e-03, atol=1e-04)
+                    if (comparison[0] and comparison[1]) or (x_out > self.height or y_out > self.height):
+                        #track end coordinates reached
+                        on_same_track = False
+                        print "end of track reached!\n"
+                    elif next_i >= imax or next_j >= imax:
+                        on_same_track = False
+                        print "end of track reached (i or jmax reached)\n"
+                    else:
+                        print "next cell: %g, %g\n" %(next_i, next_j)
+
+
+    def findSingleTrackCellIntersect(self, track, dmesh, cells, xi, yi):
+
+        # get next intersect with x, y mesh divisions
+        i, j, xint, ycalc, xcalc, yint = self.findMeshCellID(track, dmesh, xi, yi)
+
+        imax = int(math.floor(self.height / dmesh))
+
+        if i >= imax or j >= imax:
+            print "i: %d \t j: %d \tError: index greater than endpoint calculated. "%(i,j)
+            print "xint, %g \tycalc, %g \txcalc, %g \tyint: %g\n "%(xint, ycalc, xcalc, yint)
+
+            return i, j, 0, 0
+        else:
+            cell = cells[i][j]
+            #if yint = cell.yt, it intersects top cell boundary - next cell will be i, j+1
+            #if yint = cell.yb, it intersects bottom cell boundary - next cell is i, j-1
+            #if xint = cell.xr, it intersect right cell boundary - next cell is i+1, j
+            #if xint = cell.xl, it intersects left cell boundary - next cell is i-1, j
+            #if xint = cell.xr and yint = cell.yt, it intersects the top right corner - next cell i+1, j+1
+            #if xint = cell.xl and yint = cell.yt, it intersects the top left corner - next cell i-1, j+1
+            #if xint = cell.xr and yint = cell.yb, it intersects the bottom right corner - next cell i+1, j-1
+            #if xint = cell.xl and yint = cell.yb, it intersects the bottom left corner - next cell i-1, j-1
+            xdist = self.lengthTwoPoints(xi, xint, yi, ycalc)
+            ydist = self.lengthTwoPoints(xi, xcalc, yi, yint)
+
+            comparison = np.isclose([xdist],[ydist])
+            #comparison = np.isclose([xint, ycalc, xint, ycalc],[cell.xr, cell.yt, cell.xl, cell.yb],rtol = 1e-03, atol = 1e-04)
+            #comp2 = np.isclose([xcalc, yint, xcalc, yint],[cell.xr, cell.yt, cell.xl, cell.yb],rtol = 1e-03, atol = 1e-04)
+            #check the corners first
+            #can also check if xint = xcalc, and yint = ycalc. this would happen at corners.
+
+            """
+            if comparison[0] and comparison[1]:
+                # top right
+                next_cell = (i+1, j+1)
+                intcept_coords = (xint, ycalc)
+            elif comparison[0] and comparison[3]:
+                #bottom right
+                next_cell = (i+1, j-1)
+                intcept_coords = (xint, ycalc)
+            elif comparison[2] and comparison[1]:
+                #top left
+                next_cell = (i-1, j+1)
+                intcept_coords = (xcalc, ycalc)
+            elif comparison[2] and comparison[3]:
+                #bottom left
+                next_cell = (i-1, j-1)
+                intcept_coords = (xint, ycalc)
+            """
+            #elif comparison[0]:
+            if xdist < ydist:
+                #right
+                next_cell = (i+1, j)
+                intcept_coords = (xint, ycalc)
+            elif ydist < xdist:
+                #top
+                next_cell = (i, j+1)
+                intcept_coords = (xcalc, yint)
+            elif comparison[0]:
+                # top right
+                next_cell = (i + 1, j + 1)
+                intcept_coords = (xint, ycalc)
+            else:
+                next_cell = (None, None)
+                intcept_coords = (None, None)
+                print "Check findSingleTrackCellIntersect method. No next cell found."
+            """
+            elif comparison[2]:
+                #left
+                next_cell = (i-1, j)
+                intcept_coords = (xint, ycalc)
+            elif comparison[3]:
+                #bottom
+                next_cell = (i, j-1)
+                intcept_coords = (xcalc, yint)
+            """
+
+
+            s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region)
+            cell.segments.append(s)
+            track.segments.append(s)
+
+            return next_cell[0], next_cell[1], intcept_coords[0], intcept_coords[1]
+
+    def plotCellSegments(self, dmesh, savepath):
+        fig1 = plt.figure()
+        ax1 = fig1.add_subplot(111, aspect='equal')
+        plt.axis([0, self.width, 0, self.height])
+
+        #plot mesh lines first
+        num_lines = int(self.height / dmesh)
+        for k in range(num_lines):
+            plt.axvline(x=(k*dmesh),color='k', linewidth=0.5)
+            plt.axhline(y=(k*dmesh),color='k', linewidth=0.5)
+
+
+        for i in [0]:#range(self.num_azim2):
+            for j, track in enumerate(self.tracks[i]):
+                for s in track.segments:
+                    x1, y1 = s.start_coords
+                    x2, y2 = s.end_coords
+
+                    if x1 == x2:
+                        print "Error! X values are equal for i = %d, j = %d" %(i,j)
+                        print "x1 = %f \t x2 = %f" %(x1, x2)
+
+                    if y1 == y2:
+                        print "Error! y values are equal for i= %d, j = %f" %(i,j)
+                        print "y1 = %f \t y2 = %f" %(y1, y2)
+
+                    xvals = [x1, x2]
+                    yvals = [y1,y2]
+
+                    if s.region == 'moderator':
+                        plt.plot(xvals, yvals)
+                        #plt.plot(xvals, yvals, 'm')
+                    elif s.region == 'fuel':
+                        plt.plot(xvals, yvals, 'c')
+                    else:
+                        print "Error: segment region not set"
+
+        print "plotting segments..."
+        plt.savefig(savepath + '/cell_region_sectioning.png')
 
     def reflectRays(self):
 
@@ -698,6 +890,8 @@ class InitializeTracks(object):
         #plt.show()
 
 
+
+
 class SingleTrack(object):
     def __init__(self, start_coords, end_coords, phi):
         """
@@ -711,6 +905,7 @@ class SingleTrack(object):
         self.track_out = None
         self.segments = []
         self.flux_in = np.zeros((2,3))
+        self.slope = 0
 
 
 class SingleSegment(object):
