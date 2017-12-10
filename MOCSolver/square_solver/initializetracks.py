@@ -454,14 +454,18 @@ class InitializeTracks(object):
         x1, y1 = track.end_coords
         #find i, j for cell the track is crossing
         i = math.floor(x_s / dmesh)
+
         j = math.floor(y_s / dmesh)
 
-        compare = np.isclose([x1, y1], [x_s, y_s])
-
+        #compare = np.isclose([x1, y1], [x_s, y_s])
 
         #next intersection will be at x_int = dmesh * (i+1) or y_int
-        x_int = dmesh * (i+1)
-        y_int = dmesh * (j+1)
+        if not(track.slope < 0):
+            x_int = dmesh * (i+1)
+            y_int = dmesh * (j+1)
+        else:
+            x_int = dmesh * (i-1)
+            y_int = dmesh * (j+1)
 
         y_calc = self.findMeshCellIntersectY(x0, y0, x1, y1, x_int, track.slope)
         x_calc = self.findMeshCellIntersectX(x0, y0, x1, y1, y_int, track.slope)
@@ -469,12 +473,10 @@ class InitializeTracks(object):
         return int(i), int(j), x_int, y_calc, x_calc, y_int
 
     def findAllTrackCellIntersect(self, cells, dmesh):
-        #num_segments = 0  # increments index for storing segments
-        #intersect1 = [[] for _ in range(self.num_azim2)]
-        #intersect2 = [[] for _ in range(self.num_azim2)]
+
         print "Finding intersection points of tracks with mesh cells...\n\n"
 
-        for i in [0]:#range(self.num_azim2):
+        for i in reversed(range(self.num_azim2)):
             for j in range(int(self.ntot[i])):
                 track = self.tracks[i][j]  # reference to object that stores this track
 
@@ -482,10 +484,11 @@ class InitializeTracks(object):
                 x1, y1 = track.end_coords
 
                 track.slope = (y1 - y0) / (x1 - x0)
-
-                # find i, j for cell where track originates
-                #i_orig = math.floor(x0 / dmesh)
-                #j_orig = math.floor(y0 / dmesh)
+                """
+                if track.slope < 0:
+                    x0, y0 = track.end_coords
+                    x1, y1 = track.start_coords
+                """
                 on_same_track = True
                 x_out = x0
                 y_out = y0
@@ -497,11 +500,11 @@ class InitializeTracks(object):
                     print "coords in: (%g, %g)" %(x_out, y_out)
                     next_i, next_j, x_out, y_out = self.findSingleTrackCellIntersect(track, dmesh, cells, x_out, y_out)
                     comparison = np.isclose([x_out, y_out],[x1, y1],rtol=1e-03, atol=1e-04)
-                    if (comparison[0] and comparison[1]) or (x_out > self.height or y_out > self.height):
+                    if (comparison[0] and comparison[1]) or (x_out > self.height or y_out > self.height) or (x_out <= 0.0 or y_out <= 0.0):
                         #track end coordinates reached
                         on_same_track = False
                         print "end of track reached!\n"
-                    elif next_i >= imax or next_j >= imax:
+                    elif next_i >= imax or next_j >= imax or next_i < 0 or next_j < 0:
                         on_same_track = False
                         print "end of track reached (i or jmax reached)\n"
                     else:
@@ -515,75 +518,48 @@ class InitializeTracks(object):
 
         imax = int(math.floor(self.height / dmesh))
 
-        if i >= imax or j >= imax:
+        if i >= imax or j >= imax or i <0 or j<0:
             print "i: %d \t j: %d \tError: index greater than endpoint calculated. "%(i,j)
             print "xint, %g \tycalc, %g \txcalc, %g \tyint: %g\n "%(xint, ycalc, xcalc, yint)
 
             return i, j, 0, 0
         else:
             cell = cells[i][j]
-            #if yint = cell.yt, it intersects top cell boundary - next cell will be i, j+1
-            #if yint = cell.yb, it intersects bottom cell boundary - next cell is i, j-1
-            #if xint = cell.xr, it intersect right cell boundary - next cell is i+1, j
-            #if xint = cell.xl, it intersects left cell boundary - next cell is i-1, j
-            #if xint = cell.xr and yint = cell.yt, it intersects the top right corner - next cell i+1, j+1
-            #if xint = cell.xl and yint = cell.yt, it intersects the top left corner - next cell i-1, j+1
-            #if xint = cell.xr and yint = cell.yb, it intersects the bottom right corner - next cell i+1, j-1
-            #if xint = cell.xl and yint = cell.yb, it intersects the bottom left corner - next cell i-1, j-1
+
             xdist = self.lengthTwoPoints(xi, xint, yi, ycalc)
             ydist = self.lengthTwoPoints(xi, xcalc, yi, yint)
 
             comparison = np.isclose([xdist],[ydist])
-            #comparison = np.isclose([xint, ycalc, xint, ycalc],[cell.xr, cell.yt, cell.xl, cell.yb],rtol = 1e-03, atol = 1e-04)
-            #comp2 = np.isclose([xcalc, yint, xcalc, yint],[cell.xr, cell.yt, cell.xl, cell.yb],rtol = 1e-03, atol = 1e-04)
-            #check the corners first
-            #can also check if xint = xcalc, and yint = ycalc. this would happen at corners.
 
-            """
-            if comparison[0] and comparison[1]:
-                # top right
-                next_cell = (i+1, j+1)
-                intcept_coords = (xint, ycalc)
-            elif comparison[0] and comparison[3]:
-                #bottom right
-                next_cell = (i+1, j-1)
-                intcept_coords = (xint, ycalc)
-            elif comparison[2] and comparison[1]:
-                #top left
-                next_cell = (i-1, j+1)
-                intcept_coords = (xcalc, ycalc)
-            elif comparison[2] and comparison[3]:
-                #bottom left
-                next_cell = (i-1, j-1)
-                intcept_coords = (xint, ycalc)
-            """
-            #elif comparison[0]:
+            #endcomp = np.isclose([])
+
             if xdist < ydist:
-                #right
-                next_cell = (i+1, j)
-                intcept_coords = (xint, ycalc)
+                #right or left
+                if track.slope < 0:
+                    next_cell = (i-1, j)
+                    intcept_coords = (xint, ycalc)
+                else:
+                    next_cell = (i+1, j)
+                    intcept_coords = (xint, ycalc)
             elif ydist < xdist:
-                #top
-                next_cell = (i, j+1)
+                #top or bottom
+                if track.slope < 0:
+                    next_cell = (i, j+1)
+                else:
+                    next_cell = (i, j+1)
                 intcept_coords = (xcalc, yint)
             elif comparison[0]:
-                # top right
-                next_cell = (i + 1, j + 1)
-                intcept_coords = (xint, ycalc)
+                # top right or left
+                if track.slope < 0:
+                    next_cell = (i-1, j+1)
+                    intcept_coords = (xint, ycalc)
+                else:
+                    next_cell = (i + 1, j + 1)
+                    intcept_coords = (xint, ycalc)
             else:
                 next_cell = (None, None)
                 intcept_coords = (None, None)
                 print "Check findSingleTrackCellIntersect method. No next cell found."
-            """
-            elif comparison[2]:
-                #left
-                next_cell = (i-1, j)
-                intcept_coords = (xint, ycalc)
-            elif comparison[3]:
-                #bottom
-                next_cell = (i, j-1)
-                intcept_coords = (xcalc, yint)
-            """
 
 
             s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region)
@@ -604,7 +580,7 @@ class InitializeTracks(object):
             plt.axhline(y=(k*dmesh),color='k', linewidth=0.5)
 
 
-        for i in [0]:#range(self.num_azim2):
+        for i in range(self.num_azim2):
             for j, track in enumerate(self.tracks[i]):
                 for s in track.segments:
                     x1, y1 = s.start_coords
@@ -622,8 +598,8 @@ class InitializeTracks(object):
                     yvals = [y1,y2]
 
                     if s.region == 'moderator':
-                        plt.plot(xvals, yvals)
-                        #plt.plot(xvals, yvals, 'm')
+                        #plt.plot(xvals, yvals)
+                        plt.plot(xvals, yvals, 'm')
                     elif s.region == 'fuel':
                         plt.plot(xvals, yvals, 'c')
                     else:
