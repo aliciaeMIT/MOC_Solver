@@ -15,7 +15,7 @@ import time
 ########## PROBLEM SETUP ##########
 ###################################
 
-num_azim =4                  #number of azimuthal angles desired
+num_azim = 8                  #number of azimuthal angles desired
 t = 0.2                        #track spacing desired, cm
 h = 1.6                        #height of pincell
 w = h                           #width of pincell
@@ -26,7 +26,7 @@ tol = 1e-7                     #tolerance for convergence (using L2 Engineering 
 fuelgeom = 'square'
 pitch = h
 
-spacing = 0.2 #mesh spacing
+spacing = 0.05 #mesh spacing
 fwidth = 0.8 #fuel width/height
 
 #########################################
@@ -99,7 +99,7 @@ setup = InitializeTracks(num_azim, t, w, h, n_p, r, fsr, fuelgeom)
 setup.getTrackParams()
 setup.makeTracks()
 setup.findAllTrackCellIntersect(mesh.cells, spacing)
-#setup.plotCellSegments(spacing, savepath)
+setup.plotCellSegments(spacing, savepath)
 
 setup.getAngularQuadrature()
 setup.getPolarWeight()
@@ -108,14 +108,14 @@ if fuelgeom == 'square':
 #else:
 #    setup.findCircleIntersection()
 setup.reflectRays()
-setup.getFSRVolumes(fuel, mod)
+setup.getFSRVolumes(fuel, mod, mesh)
 #setup.getTrackLinkCoords()
 
 ##############################
 ########## PLOTTING ##########
 ##############################
 
-setup.plotTracks(savepath)
+#setup.plotTracks(savepath)
 #setup.plotTrackLinking(savepath)
 #setup.plotSegments()
 
@@ -123,6 +123,11 @@ setup.plotTracks(savepath)
 ########## SOLVE FOR FLUXES ##########
 ######################################
 
-flux = MethodOfCharacteristics(sigma_fuel_tot, sigma_mod_tot, fsr, setup, check, mesh.cells)
+flux = MethodOfCharacteristics(sigma_fuel_tot, sigma_mod_tot, fsr, setup, check, mesh)
 flux.solveFlux(num_iter_max, tol)
 
+
+midpt = mesh.n_cells/2 - 1
+plotter.plotScalarFlux(mesh, 0, mesh.mesh, 0, savepath)
+plotter.plotCenterFlux(mesh, mesh.cells, midpt, 0, 0, savepath)
+plotter.plotCenterFluxY(mesh, mesh.cells, midpt, 0, 0, savepath)

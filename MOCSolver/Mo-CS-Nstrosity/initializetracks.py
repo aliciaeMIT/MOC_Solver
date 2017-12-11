@@ -129,6 +129,7 @@ class InitializeTracks(object):
 
         print "plotting tracks..."
         plt.savefig(savepath + '/tracks.png')
+        plt.close()
 
     def getTrackParams(self):
         print "\n------------------\nInput parameters:\n------------------"
@@ -434,10 +435,10 @@ class InitializeTracks(object):
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 )
         return length
 
-    def segmentStore(self, x1, x2, y1, y2, i, j, region):
+    def segmentStore(self, x1, x2, y1, y2, i, j, region, cell):
         start = (x1, y1)
         end = (x2,y2)
-        newSeg = SingleSegment(start, end, region, self.lengthTwoPoints(x1, x2, y1, y2), i, j)
+        newSeg = SingleSegment(start, end, region, self.lengthTwoPoints(x1, x2, y1, y2), i, j, cell)
         return newSeg
 
     def findMeshCellIntersectY(self, x0, y0, xi, m):
@@ -596,7 +597,7 @@ class InitializeTracks(object):
         #if xi == intcept_coords[0] or yi == intcept_coords[1]:
         #    print "look here for error!!!"
 
-        s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region)
+        s = self.segmentStore(xi, intcept_coords[0], yi, intcept_coords[1], i, j, cell.region, cell)
         print "segment created for i %d j %d, region %s" %(i, j, cell.region)
         cell.segments.append(s)
         track.segments.append(s)
@@ -643,6 +644,7 @@ class InitializeTracks(object):
 
         print "plotting segments..."
         plt.savefig(savepath + '/cell_region_sectioning.png')
+        plt.close()
 
     def reflectRays(self):
 
@@ -716,7 +718,7 @@ class InitializeTracks(object):
         print "plotting segments..."
         plt.show()
 
-    def getFSRVolumes(self, fuel, mod):
+    def getFSRVolumes(self, fuel, mod, mesh):
         """
             this is for computing FSR area/volumes and quadrature weights
             to get area only, set p range to 1. should get the area of the pincell out.
@@ -726,6 +728,7 @@ class InitializeTracks(object):
         
         area = 0
         quadweight = 0
+        cellarea = mesh.mesh ** 2
 
         for p in range(self.n_p):                   #loop over polar angles
             for i in range(self.num_azim2):         #loop over all angles
@@ -735,41 +738,55 @@ class InitializeTracks(object):
                         quadweight = self.omega_m[i]  * self.t_eff[i] * self.omega_p[p]
                         s.area = quadweight * s.length
                         area += s.area
+
+                        #accumulate cell area
+                        mesh.cells[s.cellid_i][s.cellid_j].area += s.area
+                        #print "cell area calculated = %f \ncell area expected = %f \n" % (mesh.cells[s.cellid_i][s.cellid_j].area, cellarea)
+
                         if s.region == 'moderator':
                             mod.area += s.area
                         elif s.region == 'fuel':
                             fuel.area += s.area
 
         est_area = self.width * self.height     #area of pincell
+        for i in range(mesh.n_cells):
+            for cell in mesh.cells[i]:
+                print "cell area calculated = %f \ncell area expected = %f \n" % (cell.area, cellarea)
+                cell.corr = cellarea / cell.area
+                cell.area = cellarea
+                print "cell track area correction factor: %f" % (cell.corr)
 
         if self.geom == 'circle':
             est_area_fuel = math.pi * self.radius ** 2
         elif self.geom == 'square':
             est_area_fuel = (self.radius * 2) ** 2
         est_area_mod = est_area - est_area_fuel
-        tot_area = fuel.area + mod.area
+        #tot_area = fuel.area + mod.area
 
-        print "fuel area calculated = %f \nfuel area expected = %f \n" %(fuel.area, est_area_fuel)
-        print "mod area calculated = %f \nmod area expected = %f \n" %(mod.area, est_area_mod)
+        #print "fuel area calculated = %f \nfuel area expected = %f \n" %(fuel.area, est_area_fuel)
+        #print "mod area calculated = %f \nmod area expected = %f \n" %(mod.area, est_area_mod)
         print "pincell area calculated = %f \npincell area expected = %f\n" %(tot_area, est_area)
 
         print "Correcting track lengths...\n"
 
-        corr_fuel = est_area_fuel / fuel.area
-        corr_mod = est_area_mod / mod.area
-        print "fuel track area correction factor: %f \nmod track area correction factor: %f\n" %(corr_fuel, corr_mod)
+        #corr_fuel = est_area_fuel / fuel.area
+        #corr_mod = est_area_mod / mod.area
+        #print "fuel track area correction factor: %f \nmod track area correction factor: %f\n" %(corr_fuel, corr_mod)
 
         for i in range(self.num_azim2):  # loop over all angles
             for track in self.tracks[i]:  # loop over all tracks
                 for s in track.segments:  # loop over all segments
+                    correction = mesh.cells[s.cellid_i][s.cellid_j].corr
+                    s.length += correction
+                    """
                     if s.region == 'moderator':
                         s.length *= corr_mod
 
                     elif s.region == 'fuel':
                         s.length *= corr_fuel
-
-        fuel.area = est_area_fuel
-        mod.area = est_area_mod
+                    """
+        #fuel.area = est_area_fuel
+        #mod.area = est_area_mod
 
     def findBoundaryID(self, coords):
         #finds which boundary a start/endpoint lies on. takes in a tuple of coordinates
@@ -927,7 +944,7 @@ class SingleTrack(object):
 
 
 class SingleSegment(object):
-    def __init__(self, start_coords, end_coords, region, length, i, j):
+    def __init__(self, start_coords, end_coords, region, length, i, j, cell):
 
         self.start_coords = start_coords
         self.end_coords = end_coords
@@ -936,3 +953,4 @@ class SingleSegment(object):
         self.exponential = []
         self.cellid_i = i
         self.cellid_j = j
+        self.cell = cell

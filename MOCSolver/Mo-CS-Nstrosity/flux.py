@@ -11,7 +11,7 @@ class MethodOfCharacteristics(object):
     """
     class for calculating angular and scalar flux
     """
-    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup, check, cells):
+    def __init__(self, sigma_t_fuel, sigma_t_mod, regions, setup, check, mesh):
 
         self.sigma_t_fuel = sigma_t_fuel
         self.sigma_t_mod = sigma_t_mod
@@ -20,7 +20,8 @@ class MethodOfCharacteristics(object):
         self.tracks = setup.tracks
         self.check = check
         self.exponential = []
-        self.cells = cells
+        self.mesh = mesh
+        self.cells = mesh.cells
         #get n_p by self.setup.n_p, numazim2 by self.setup.num_azim2
         #get segments in a track by self.tracks.segments
         #get segments in a region by self.regions.segments
@@ -36,12 +37,15 @@ class MethodOfCharacteristics(object):
                 for s in track.segments:
                     for p in range(n_p):
                         region = s.region
+                        q_seq =
+                        """
                         if region == 'moderator':
                             q_seg = self.regions[1].source
                         elif region == 'fuel':
                             q_seg = self.regions[0].source
                         else:
                             print "error here"
+                        """
                         length = s.length
                         try:
                             s.exponential.append(self.exponentialTerm(length, region, p))
@@ -88,6 +92,11 @@ class MethodOfCharacteristics(object):
             #initialize scalar flux accumulators
             fuel.flux = 0
             mod.flux = 0
+
+            for k in range(mesh.n_cells):
+                for cell in self.cells[k]:
+                    cell.flux = 0
+
 
             for p in range(stp.n_p):                                       #loop over polar angles
                 for i in range(stp.num_azim2):                             #loop over azimuthal angles
@@ -144,8 +153,8 @@ class MethodOfCharacteristics(object):
             mod.flux = 4 * math.pi * mod.source / self.segmentXS('moderator') + mod.flux / (self.segmentXS('moderator') * mod.area)
 
             if num_iter == 0:
-                self.dancoff_flux0 = fuel.flux
-                print "Dancoff first pass flux: %f \n"%(self.dancoff_flux0)
+                #self.dancoff_flux0 = fuel.flux
+                #print "Dancoff first pass flux: %f \n"%(self.dancoff_flux0)
                 num_iter+=1
             elif num_iter >= 1:
                 print "Checking convergence for iteration %d" % (num_iter)
@@ -177,7 +186,43 @@ class MethodOfCharacteristics(object):
               "\nFuel = \t\t\t%g \nModerator = \t%g" \
               "\nNumber of iterations: %d" % (fuel.flux, mod.flux, num_iter+1)
 
-        stp.plotScalarFlux(fuel.flux, mod.flux)
+        #stp.plotScalarFlux(fuel.flux, mod.flux)
+    def getAvgScalarFlux(self):
+        fuelflux = 0.0
+        modflux = 0.0
+        maxflux = 0.0
+        scalarflux = 0.0
+        fuelcell = 0
+        modcell = 0
+
+        for i in range(mesh.n_cells):
+            for cell in self.cells[i]:
+                scalarflux += cell.flux
+        avg = scalarflux / (mesh.n_cells ** 2)
+        for i in range(mesh.n_cells):
+            for cell in self.cells[i]:
+                cell.flux /= avg
+                if cell.flux > maxflux:
+                    maxflux = cell.flux
+                if cell.region == 'fuel':
+                    # accumulate scalar flux avg for fuel
+                    fuelflux += cell.flux
+                    fuelcell += 1
+                else:
+                    # accumulate scalar flux avg for mod
+                    modflux += cell.flux
+                    modcell += 1
+
+        fuelflux /= fuelcell
+        # fuelflux /= maxflux
+        modflux /= modcell
+
+        # modflux /= maxflux
+        ratio = fuelflux / modflux
+        print "Avg fuel flux = %f \nAvg mod flux = %f \nAverage Flux  = %f \nFlux ratio = %f" % (fuelflux, modflux, avg, ratio)
+        return fuelflux, modflux, avg, ratio
+
+
 
 
 class ConvergenceTest(object):
