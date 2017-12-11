@@ -17,12 +17,12 @@ import time
 ###################################
 pitch = 1.6
 fwidth = 0.8                    #fuel width/height
-num_azim = 16                    #number of azimuthal angles desired
-t = 0.05                         #track spacing desired, cm
-spacing = 0.05                   #mesh spacing
+num_azim = 8                    #number of azimuthal angles desired
+t = 0.2                         #track spacing desired, cm
+spacing = 0.1                   #mesh spacing
 n_p = 3                         #number of polar divisions; can be 2 or 3
 num_iter_max = 100              #maximum number of iterations on flux
-tol = 1e-7                      #tolerance for convergence (using L2 Engineering Norm)
+tol = 1e-3                      #tolerance for convergence (using L2 Engineering Norm)
 fuelgeom = 'square'
 
 h = pitch                       #height of pincell
@@ -32,8 +32,9 @@ r = fwidth/2                    #fuel pin effective radius (half width of square
 ########## MATERIAL PROPERTIES ##########
 #########################################
 
-q_fuel = 10                  #constant isotropic source in fuel
+q_fuel = 10/(4 * pi)                  #constant isotropic source in fuel
 q_mod = 0                       #no source in moderator
+update_source = True
 """
 ndensity_fuel = 2.2e22          #atoms/cc (UO2)
 ndensity_mod = 1.0e21           #at/cc (H2O)
@@ -90,10 +91,10 @@ f = open('%s.txt' %resultsfile, 'w+')
 
 f.write("********PROBLEM SETUP********\n")
 f.write("cell pitch \t %g\nfuel width \t %g\nfuel source \t %g\nmod source \t %g\n\n" %(pitch, fwidth, q_fuel, q_mod))
-f.write("converge tol \t %g\nnum of azimuthal angles \t %g\nnum polar angles \t %g\n" %(tol, num_azim, n_p))
+f.write("converge tol \t %g\nnum_azim \t %g\nnum_polar \t %g\n" %(tol, num_azim, n_p))
 f.write("track spacing \t %g\nmesh spacing \t %g\n" %(t, spacing))
-f.write("fuel total xs \t %g\nfuel scatter xs \t %g\nfuel absorption xs \t %g\n"
-        "mod total xs \t %g\nmod scatter xs \t %g\nmod absorption xs\t%g\n"
+f.write("fuel total xs \t %g\nfuel scatter \t %g\nfuel absorp \t %g\n"
+        "mod total xs \t %g\nmod scatter \t %g\nmod absorp \t%g\n"
         "*****************************\n\n" %(sigma_fuel_tot, sigma_fuel_scatter, sigma_fuel_abs, sigma_mod_tot, sigma_mod_scatter,sigma_mod_abs))
 
 
@@ -152,7 +153,9 @@ setup.getFSRVolumes(fuel, mod, mesh)
 ######################################
 
 flux = MethodOfCharacteristics(sigma_fuel_tot, sigma_mod_tot, fsr, setup, check, mesh)
-flux.solveFlux(num_iter_max, tol)
+flux.solveFlux(num_iter_max, tol, update_source)
+f.write("\nConverged in %d iterations! \nAvg fuel flux\t %f \nAvg mod flux\t %f\nAverage Flux\t %f \nFlux ratio\t %f\n\n"
+        % (flux.results[0], flux.results[1], flux.results[2], flux.results[3], flux.results[4]))
 
 midpt = mesh.n_cells/2 - 1
 plotter.plotScalarFlux(mesh, 0, mesh.mesh, 0, savepath)

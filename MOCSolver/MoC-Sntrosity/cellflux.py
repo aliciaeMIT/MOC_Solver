@@ -44,7 +44,7 @@ class MethodOfCharacteristics(object):
         delta_psi = (flux_in - q_seg / s.cell.material.xs * (1 - s.exponential[p]))
         return delta_psi
 
-    def solveFlux(self, num_iter_tot, tol):
+    def solveFlux(self, num_iter_tot, tol, update_source):
 
         stp = self.setup
         self.preCalculate()
@@ -54,14 +54,23 @@ class MethodOfCharacteristics(object):
         #mod = self.regions[1]
         converged = False
         flux_old = []
+        scalar_flux_old = [0, 0]
 
         print "Solving for fluxes...\n"
-        while not converged:
-            #initialize scalar flux accumulators in each FSR (cell)
-            for k in range(self.mesh.n_cells):
-                for cell in self.cells[k]:
-                    cell.flux = 0
 
+        # initialize scalar flux guesses for source calculation: phi = q / sigma_absorption for mod, phi = q for fuel
+        for i in range(self.mesh.n_cells):
+            for cell in self.cells[i]:
+                #cell = self.cells[i][j]
+                if cell.region == 'fuel':
+                    absorpt = 1
+                else:
+                    absorpt = cell.material.xs - cell.material.scatter
+                cell.flux = cell.material.q / absorpt
+
+        while not converged:
+            if update_source:
+                self.updateAllCellSource()
             for p in range(stp.n_p):                                       #loop over polar angles
                 for i in range(stp.num_azim2):                             #loop over azimuthal angles
                     for track in self.tracks[i]:                           #loop over all tracks
@@ -104,37 +113,38 @@ class MethodOfCharacteristics(object):
             for k in range(self.mesh.n_cells):
                 for cell in self.cells[k]:
                     cell.flux = (4 * math.pi * cell.material.q / cell.material.xs) + cell.flux / (cell.material.xs * cell.area)
+                    """
+                    if cell.material.name == 'fuel':
+                        fuelflux += cell.flux
+                    elif cell.material.name == 'moderator':
+                        modflux += cell.flux
+                    else:
+                        print "error in FSR flux update"
+                    """
                     #may need to have 4pi on the last term as well, check later
 
-            #fuel.flux = 4 * math.pi * fuel.source / self.segmentXS('fuel') + fuel.flux / (self.segmentXS('fuel') * fuel.area)
-            #mod.flux = 4 * math.pi * mod.source / self.segmentXS('moderator') + mod.flux / (self.segmentXS('moderator') * mod.area)
-            """
-            if num_iter == 0:
-                #self.dancoff_flux0 = fuel.flux
-                #print "Dancoff first pass flux: %f \n"%(self.dancoff_flux0)
-                num_iter+=1
-            elif num_iter >= 1:
-                print "Checking convergence for iteration %d" % (num_iter)
-                converged = self.check.isConverged([fuel.flux, mod.flux], flux_old, tol)
-
-                if converged:
-                    print "\nNumber of iterations to convergence: %d" % (num_iter+1)
-                    dancoff = self.check.computeDancoff(self.dancoff_flux0, fuel.flux, fuel.source,  self.segmentXS('fuel'))
-                    print "Dancoff factor: %f" %(dancoff)
-                elif num_iter >= num_iter_tot:
-                    print "Total number of iterations reached before convergence. Break."
-                    converged = True
-                    dancoff = self.check.computeDancoff(self.dancoff_flux0, fuel.flux, fuel.source, self.segmentXS('fuel'))
-                    print "Dancoff factor: %f" % (dancoff)
-                else:
-                    num_iter +=1
-
-            #clear previous arrays; set new values equal to old values for next run
-            flux_old[:] = []
-            flux_old = [fuel.flux, mod.flux]
-            """
+            getfluxes = self.getAvgScalarFlux()
+            scalar_flux = getfluxes[:2]
+            print "Checking convergence for iteration %d" % (num_iter)
+            converged = self.check.isConverged(scalar_flux, scalar_flux_old, tol)
             converged = True
-        self.getAvgScalarFlux()
+            if not converged:
+                num_iter += 1
+                scalar_flux_old = scalar_flux[:]
+
+                # reinitialize scalar flux accumulators in each FSR (cell)
+                for k in range(self.mesh.n_cells):
+                    for cell in self.cells[k]:
+                        cell.flux = 0
+
+                if num_iter == num_iter_tot:
+                    converged = True
+                    print "Not converged after %d iterations." %(num_iter)
+            else:
+                print "Converged in %d iterations\n" %(num_iter)
+                self.results = self.returnSolveResults(num_iter, getfluxes[0], getfluxes[1], getfluxes[2], getfluxes[3])
+
+
         #normalize fuel flux to 1
         #fuel.flux /= mod.flux
        # mod.flux /= mod.flux
@@ -147,6 +157,11 @@ class MethodOfCharacteristics(object):
         #      "\nNumber of iterations: %d" % (fuel.flux, mod.flux, num_iter+1)
 
         #stp.plotScalarFlux(fuel.flux, mod.flux)
+    def returnSolveResults(self, iters, fuelflux, modflux, avgflux, ratio):
+       # print "Iterations to convergence: %d \nModerator flux: %g\nFuel flux: %g\n Avg flux: %g\n Flux ratio: %g" \
+        #      %(iters, modflux, fuelflux, avgflux, ratio)
+        return iters, fuelflux, modflux, avgflux, ratio
+
     def getAvgScalarFlux(self):
         fuelflux = 0.0
         modflux = 0.0
@@ -158,12 +173,29 @@ class MethodOfCharacteristics(object):
         for i in range(self.mesh.n_cells):
             for cell in self.cells[i]:
                 scalarflux += cell.flux
+        print "scalar flux = %g" %(scalarflux)
+        print "num cells = %g" %(self.mesh.n_cells ** 2)
+
         avg = scalarflux / (self.mesh.n_cells ** 2)
         for i in range(self.mesh.n_cells):
             for cell in self.cells[i]:
-                cell.flux /= avg
+                #cell.flux /= avg
                 if cell.flux > maxflux:
                     maxflux = cell.flux
+                """
+                if cell.region == 'fuel':
+                    # accumulate scalar flux avg for fuel
+                    fuelflux += cell.flux
+                    fuelcell += 1
+                else:
+                    # accumulate scalar flux avg for mod
+                    modflux += cell.flux
+                    modcell += 1
+                """
+        for i in range(self.mesh.n_cells):
+            for cell in self.cells[i]:
+                cell.flux /= maxflux
+
                 if cell.region == 'fuel':
                     # accumulate scalar flux avg for fuel
                     fuelflux += cell.flux
@@ -174,14 +206,28 @@ class MethodOfCharacteristics(object):
                     modcell += 1
 
         fuelflux /= fuelcell
-        # fuelflux /= maxflux
+        print "max flux = %g" %(maxflux)
+        #fuelflux /= maxflux
         modflux /= modcell
 
-        # modflux /= maxflux
+        #modflux /= maxflux
         ratio = fuelflux / modflux
         print "Avg fuel flux = %f \nAvg mod flux = %f \nAverage Flux  = %f \nFlux ratio = %f" % (fuelflux, modflux, avg, ratio)
         return fuelflux, modflux, avg, ratio
 
+    def updateSource(self, q, flux, scatter):
+        #calc = ((1/2) * (scatter * flux + q))
+        return ((1./2.) * (scatter * flux + q))
+
+    def updateAllCellSource(self):
+        for i in range(self.mesh.n_cells):
+            for cell in self.cells[i]:
+                #cell = self.cells[i][j]
+               # print "cell [%d][%d] source update:\nOld source; %g" % (i, j, cell.source)
+
+                cell.source = self.updateSource(cell.material.q, cell.flux, cell.material.scatter)
+                #sourceval = cell.source
+                #print "new source; %g" %(cell.source)
 
 class ConvergenceTest(object):
     def __init__(self):
